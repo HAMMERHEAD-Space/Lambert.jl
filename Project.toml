@@ -13,7 +13,7 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
 [compat]
 AstroCoords = "0.3"
-LinearAlgebra = "1.11"
+LinearAlgebra = "1.10, 1.11"
 Parameters = "0.12"
 Roots = "2.2"
 SciMLBase = "2.67"
