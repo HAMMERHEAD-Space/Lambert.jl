@@ -110,11 +110,10 @@ Each solver supports different parameters based on their implementation:
 | Gooding | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Izzo | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Battin | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
-| Vallado | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | - |
+| Vallado | ✓* | ✓ | ✗ | ✓ | ✗ | ✓ | - |
 | Gauss | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Arora | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | - |
 | Avanzini | ✓* | ✓ | ✗ | ✓ | ✓ | ✓ | - |
-| LancasterBlanchard | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | - |
 
 *Only M=0 supported, †Multi-rev fallback available
 
