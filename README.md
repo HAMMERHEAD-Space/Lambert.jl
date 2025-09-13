@@ -4,6 +4,7 @@
 [![codecov](https://codecov.io/gh/HAMMERHEAD-Space/Lambert.jl/branch/main/graph/badge.svg?token=47G4OLV6PD)](https://codecov.io/gh/HAMMERHEAD-Space/Lambert.jl)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![DOI](https://zenodo.org/badge/1055854730.svg)](https://doi.org/10.5281/zenodo.17109956)
 
 This package provides multiple Lambert problem solvers ported from the Python `lamberthub` library.
 
@@ -289,6 +290,30 @@ This makes it easy to integrate Lambert transfers into broader orbital mechanics
 18. **Roth, W.** (1996). Multiple revolution solutions for Lambert's problem. *AAS/AIAA Spaceflight Mechanics Meeting*, Paper AAS 96-152, Austin, Texas.
 
 19. **Thompson, R. C.** (1964). A unified algorithm for Lambert's problem. *Journal of Guidance, Control, and Dynamics*, 7(2), 139-145. [Early computer-era algorithm development]
+
+## Citing
+
+If you use `Lambert.jl` in your work, please consider citing it.
+
+```bibtex
+@software{jordan_murphy_2025_17109957,
+  author       = {Jordan Murphy},
+  title        = {HAMMERHEAD-Space/Lambert.jl: v0.1.0},
+  month        = sep,
+  year         = 2025,
+  publisher    = {Zenodo},
+  version      = {v0.1.0},
+  doi          = {10.5281/zenodo.17109957},
+  url          = {https://doi.org/10.5281/zenodo.17109957},
+  swhid        = {swh:1:dir:bb8ba970cdf8762af1f94d29e26c69a7ca0cac27
+                   ;origin=https://doi.org/10.5281/zenodo.17109956;vi
+                   sit=swh:1:snp:58a54818f822c7f750eeca5c512a79612a72
+                   b2c1;anchor=swh:1:rel:846dc4b04c1dd3667ee61fe5a4b6
+                   22916278d3b8;path=HAMMERHEAD-Space-Lambert.jl-
+                   ba6bde4
+                  },
+}
+```
 
 ## Acknowledgments
 
