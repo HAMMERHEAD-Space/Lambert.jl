@@ -23,7 +23,7 @@ This package provides multiple Lambert problem solvers ported from the Python `l
 ### Eccentricity-Based Solvers
 - **AvanziniSolver**: G. Avanzini's eccentricity-based method (2008) - Single revolution only
 
-### Potential Future Solvers
+## Potential Future Solvers
 - **LancasterBlanchardSolver**: E. R. Lancaster & R. C. Blanchard's unified method (1969) - Industry standard
 - **PrussingSolver**: J. E. Prussing's p-iteration method (2000) - Educational and multi-rev optimization
 - **KlumppSolver**: A. R. Klumpp's spacecraft onboard algorithm (1999) - Fast convergence, minimal memory
