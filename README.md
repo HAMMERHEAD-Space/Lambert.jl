@@ -298,11 +298,8 @@ If you use `Lambert.jl` in your work, please consider citing it.
 ```bibtex
 @software{jordan_murphy_2025_17109957,
   author       = {Jordan Murphy},
-  title        = {HAMMERHEAD-Space/Lambert.jl: v0.1.0},
-  month        = sep,
-  year         = 2025,
+  title        = {HAMMERHEAD-Space/Lambert.jl},
   publisher    = {Zenodo},
-  version      = {v0.1.0},
   doi          = {10.5281/zenodo.17109957},
   url          = {https://doi.org/10.5281/zenodo.17109957},
   swhid        = {swh:1:dir:bb8ba970cdf8762af1f94d29e26c69a7ca0cac27
