@@ -33,7 +33,11 @@ const MULTIREV_SOLVERS = [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolv
     # Run new EnsembleProblem integration tests  
     include("ensemble_tests.jl")
 
+    # Run porkchop plot tests
+    include("test_porkchop_plot.jl")
+
     # Run performance and allocation tests
+    #TODO: NEED TO REMOVE ALLOCATIONS
     #include("test_performance.jl")
 end
 

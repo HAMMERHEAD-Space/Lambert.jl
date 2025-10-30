@@ -11,10 +11,17 @@ Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
+[weakdeps]
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+
+[extensions]
+LambertPlotsExt = "Plots"
+
 [compat]
 AstroCoords = "0.3"
 LinearAlgebra = "1.10, 1.11"
 Parameters = "0.12"
+Plots = "1.40"
 Roots = "2.2"
 SciMLBase = "2.67"
 StaticArraysCore = "1.4"
@@ -30,4 +37,4 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "AllocCheck", "Aqua", "JET", "Random", "Statistics"]
+test = ["Test", "AllocCheck", "Aqua", "JET", "Plots", "Random", "Statistics"]
