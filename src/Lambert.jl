@@ -11,6 +11,10 @@ import SciMLBase: solve, remake, init, solve!
 # Abstract solver type
 abstract type AbstractLambertSolver <: SciMLBase.AbstractSciMLAlgorithm end
 
+# Function Stub for Plots Extension
+export porkchop_plot
+function porkchop_plot end
+
 include("lambert_problem.jl")
 include("utils.jl")
 

@@ -1,0 +1,5 @@
+[deps]
+AstroCoords = "27fb9038-6a9d-4e07-8d5d-d0805b53c4cb"
+Lambert = "66f5ad62-9998-49cb-a01c-13bfcd13cbb1"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"

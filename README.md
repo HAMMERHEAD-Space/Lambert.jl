@@ -243,6 +243,72 @@ The AstroCoords integration automatically handles:
 
 This makes it easy to integrate Lambert transfers into broader orbital mechanics workflows using your preferred coordinate representations.
 
+## Porkchop Plots (Plots.jl Extension)
+
+This package includes an optional extension for creating porkchop plots with Plots.jl. A porkchop plot is a contour plot that visualizes transfer requirements (ΔV, excess velocity) across different departure and arrival times, essential for mission planning in astrodynamics.
+
+![Earth-Mars Transfer Porkchop Plot](examples/earth_mars_porkchop_total_excess_velocity.png)
+
+### Installation
+
+The porkchop plot functionality requires Plots.jl to be installed:
+
+```julia
+using Pkg
+Pkg.add("Plots")
+```
+
+Once Plots.jl is installed, the extension will automatically load when you use both packages:
+
+```julia
+using Lambert
+using Plots  # This activates the LambertPlotsExt extension
+```
+
+**For a complete working example**, see [`examples/porkchop_example.jl`](examples/porkchop_example.jl) which demonstrates:
+- Earth-Mars interplanetary transfer
+- Planetary orbit propagation with AstroCoords.jl
+- Multiple quantity visualization with subplots
+- Time scaling and TOF contours
+
+
+### Available Quantities
+
+The `plot_quantity` parameter supports:
+
+- **`:total_dv`** (default): Total ΔV required (sum of departure and arrival maneuvers)
+- **`:total_excess_velocity`**: Total excess velocity (V∞) - same as total_dv but with V∞ notation
+- **`:dv_departure`** / **`:excess_velocity_departure`**: Departure ΔV or excess velocity
+- **`:dv_arrival`** / **`:excess_velocity_arrival`**: Arrival ΔV or excess velocity
+
+### Customization Options
+
+```julia
+p = porkchop_plot(μ, state1_func, state2_func, departure_times, arrival_times;
+    solver = IzzoSolver(),              # Lambert solver algorithm
+    ensemble_alg = EnsembleThreads(),   # Parallel execution (Serial, Threads, Distributed)
+    max_deltav = 20.0,                  # Maximum ΔV to display [km/s]
+    levels = nothing,                   # Contour levels (auto if nothing)
+    tof_contours = true,                # Overlay time-of-flight lines
+    tof_spacing = 100*86400,            # TOF line spacing (e.g., every 100 days)
+    time_scale = 86400.0,               # Scale factor for axis display (seconds→days)
+    plot_quantity = :total_dv,          # Quantity to plot (or vector for subplots)
+    title = "Porkchop Plot",
+    xlabel = "Departure Time",
+    ylabel = "Arrival Time",
+    color = :turbo                      # Colormap (:turbo, :plasma, :jet, etc.)
+)
+```
+
+### Time-of-Flight Contours
+
+Porkchop plots include diagonal time-of-flight (TOF) lines by default, showing trajectories with equal flight duration:
+
+- Black dashed lines indicate constant TOF
+- Lines are labeled with the TOF value
+- Automatically scaled to match your time units
+- Control with `tof_contours`, `tof_levels`, and `tof_spacing` parameters
+
 ## References
 
 ### Primary Algorithm References
@@ -302,13 +368,6 @@ If you use `Lambert.jl` in your work, please consider citing it.
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.17109957},
   url          = {https://doi.org/10.5281/zenodo.17109957},
-  swhid        = {swh:1:dir:bb8ba970cdf8762af1f94d29e26c69a7ca0cac27
-                   ;origin=https://doi.org/10.5281/zenodo.17109956;vi
-                   sit=swh:1:snp:58a54818f822c7f750eeca5c512a79612a72
-                   b2c1;anchor=swh:1:rel:846dc4b04c1dd3667ee61fe5a4b6
-                   22916278d3b8;path=HAMMERHEAD-Space-Lambert.jl-
-                   ba6bde4
-                  },
 }
 ```
 
