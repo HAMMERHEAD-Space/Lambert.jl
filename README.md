@@ -368,13 +368,6 @@ If you use `Lambert.jl` in your work, please consider citing it.
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.17109957},
   url          = {https://doi.org/10.5281/zenodo.17109957},
-  swhid        = {swh:1:dir:bb8ba970cdf8762af1f94d29e26c69a7ca0cac27
-                   ;origin=https://doi.org/10.5281/zenodo.17109956;vi
-                   sit=swh:1:snp:58a54818f822c7f750eeca5c512a79612a72
-                   b2c1;anchor=swh:1:rel:846dc4b04c1dd3667ee61fe5a4b6
-                   22916278d3b8;path=HAMMERHEAD-Space-Lambert.jl-
-                   ba6bde4
-                  },
 }
 ```
 
