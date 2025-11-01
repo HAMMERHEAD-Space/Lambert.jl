@@ -1,7 +1,7 @@
 name = "Lambert"
 uuid = "66f5ad62-9998-49cb-a01c-13bfcd13cbb1"
 authors = ["Jordan Murphy <jmurphy6895@gmail.com> and contributors"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 AstroCoords = "27fb9038-6a9d-4e07-8d5d-d0805b53c4cb"
