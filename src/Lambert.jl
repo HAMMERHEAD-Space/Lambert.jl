@@ -17,6 +17,7 @@ function porkchop_plot end
 
 include("lambert_problem.jl")
 include("utils.jl")
+include("porkchop.jl")
 
 # Solvers
 include("arora_solver.jl")

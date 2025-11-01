@@ -33,7 +33,10 @@ const MULTIREV_SOLVERS = [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolv
     # Run new EnsembleProblem integration tests  
     include("ensemble_tests.jl")
 
-    # Run porkchop plot tests
+    # Run porkchop grid tests (core functionality, no plotting dependencies)
+    include("test_porkchop_grid.jl")
+
+    # Run porkchop plot tests (requires Plots.jl extension)
     include("test_porkchop_plot.jl")
 
     # Run performance and allocation tests

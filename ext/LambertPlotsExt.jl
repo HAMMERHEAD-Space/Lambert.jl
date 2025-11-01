@@ -87,119 +87,35 @@ function Lambert.porkchop_plot(
     color = :turbo,
     kwargs...,
 )
-    n_dep = length(departure_times)
-    n_arr = length(arrival_times)
-
     # Normalize plot_quantity to a vector
     plot_quantities = plot_quantity isa Symbol ? [plot_quantity] : plot_quantity
-    n_quantities = length(plot_quantities)
 
-    # Preallocate matrices for each quantity
-    result_matrices = [fill(NaN, n_arr, n_dep) for _ = 1:n_quantities]
+    # Generate the grid data using the core Lambert function
+    grid = Lambert.porkchop_grid(
+        μ,
+        state1_func,
+        state2_func,
+        departure_times,
+        arrival_times;
+        solver = solver,
+        ensemble_alg = ensemble_alg,
+        max_deltav = max_deltav,
+        quantities = plot_quantities,
+    )
 
-    # Build a list of all problem parameters
-    problem_params = []
-    indices = []
-
-    for (i, t_dep) in enumerate(departure_times)
-        state1 = state1_func(t_dep)
-        r1 = SVector{3}(state1[1], state1[2], state1[3])
-        v1 = SVector{3}(state1[4], state1[5], state1[6])
-
-        for (j, t_arr) in enumerate(arrival_times)
-            # Time of flight must be positive
-            tof = t_arr - t_dep
-            if tof <= 0
-                continue
-            end
-
-            state2 = state2_func(t_arr)
-            r2 = SVector{3}(state2[1], state2[2], state2[3])
-            v2 = SVector{3}(state2[4], state2[5], state2[6])
-
-            push!(problem_params, (r1, r2, tof, v1, v2))
-            push!(indices, (j, i))
-        end
-    end
-
-    # Create a base problem (will be remade for each trajectory)
-    if isempty(problem_params)
+    # If no valid data was generated, return nothing
+    if all(all(isnan, grid[qty]) for qty in plot_quantities)
         return nothing
     end
 
-    r1_base, r2_base, tof_base, _, _ = problem_params[1]
-    base_prob = Lambert.LambertProblem(μ, r1_base, r2_base, tof_base)
-
-    # prob_func remakes the problem for each trajectory
-    function prob_func(prob, i, repeat)
-        r1, r2, tof, _, _ = problem_params[i]
-        remake(prob; r1 = r1, r2 = r2, tof = tof)
-    end
-
-    # output_func computes all requested quantities from the solution
-    function output_func(sol, i)
-        _, _, _, v1, v2 = problem_params[i]
-
-        if sol.retcode == :SUCCESS
-            # Calculate ΔV at departure and arrival
-            Δv1 = norm(sol.v1 .- v1)
-            Δv2 = norm(sol.v2 .- v2)
-            total_deltav = Δv1 + Δv2
-
-            # Apply maximum ΔV filter
-            if total_deltav <= max_deltav
-                # Return all three quantities as a tuple
-                return ((Δv1, Δv2, total_deltav), false)
-            end
-        end
-
-        return ((NaN, NaN, NaN), false)
-    end
-
-    # Create and solve ensemble problem
-    ensemble_prob = SciMLBase.EnsembleProblem(
-        base_prob,
-        prob_func = prob_func,
-        output_func = output_func,
-    )
-
-    sim = SciMLBase.solve(
-        ensemble_prob,
-        solver,
-        ensemble_alg;
-        trajectories = length(problem_params),
-    )
-
-    # Fill in the result matrices
-    for (idx, (j, i)) in enumerate(indices)
-        Δv1, Δv2, total_dv = sim.u[idx]
-
-        # Fill matrices based on which quantities were requested
-        for (q_idx, qty) in enumerate(plot_quantities)
-            result_matrices[q_idx][j, i] = if qty == :total_dv
-                total_dv
-            elseif qty == :total_excess_velocity
-                total_dv  # Same as total_dv (sum of departure and arrival excess velocities)
-            elseif qty == :dv_departure || qty == :excess_velocity_departure
-                Δv1
-            elseif qty == :dv_arrival || qty == :excess_velocity_arrival
-                Δv2
-            else
-                error(
-                    "Invalid plot_quantity: $qty. Must be :total_dv, :total_excess_velocity, :dv_departure, :dv_arrival, :excess_velocity_departure, or :excess_velocity_arrival",
-                )
-            end
-        end
-    end
-
     # Scale axes for display (does not affect calculations)
-    departure_times_scaled = departure_times ./ time_scale
-    arrival_times_scaled = arrival_times ./ time_scale
+    departure_times_scaled = grid.departure_times ./ time_scale
+    arrival_times_scaled = grid.arrival_times ./ time_scale
 
     # Create plots for each quantity
     plots = []
-    for (q_idx, qty) in enumerate(plot_quantities)
-        deltav_matrix = result_matrices[q_idx]
+    for qty in plot_quantities
+        deltav_matrix = grid[qty]
 
         # Determine contour levels for this quantity
         qty_levels = if levels === nothing
@@ -208,6 +124,147 @@ function Lambert.porkchop_plot(
             if !isempty(valid_dv)
                 min_dv = minimum(valid_dv)
                 max_dv = min(maximum(valid_dv), max_deltav)
+                range(min_dv, max_dv, length = 20)
+            else
+                0:0.5:10
+            end
+        else
+            levels
+        end
+
+        # Create the plot
+        p = contourf(
+            departure_times_scaled,
+            arrival_times_scaled,
+            deltav_matrix,
+            levels = qty_levels,
+            xlabel = xlabel,
+            ylabel = ylabel,
+            title = title,
+            color = color,
+            clims = (minimum(qty_levels), maximum(qty_levels)),
+            colorbar_title = _get_colorbar_title(qty),
+            size = (950, 700),
+            titlefontsize = 20,
+            guidefontsize = 16,
+            tickfontsize = 10,
+            colorbar_tickfontsize = 11,
+            colorbar_titlefontsize = 14,
+            left_margin = 8Plots.mm,
+            right_margin = 8Plots.mm,
+            top_margin = 5Plots.mm,
+            bottom_margin = 5Plots.mm;
+            kwargs...,
+        )
+
+        push!(plots, p)
+    end
+
+    # Add time-of-flight lines to all plots
+    if tof_contours
+        for p in plots
+            _add_tof_lines!(
+                p,
+                departure_times_scaled,
+                arrival_times_scaled,
+                tof_levels,
+                tof_spacing,
+                time_scale,
+            )
+        end
+    end
+
+    # Return single plot or vertical subplots
+    if length(plots) == 1
+        return plots[1]
+    else
+        # Combine plots into vertical subplots with better spacing
+        return plot(
+            plots...,
+            layout = (length(plots), 1),
+            size = (1150, 700 * length(plots)),
+            left_margin = 20Plots.mm,
+            right_margin = 18Plots.mm,
+            top_margin = 8Plots.mm,
+            bottom_margin = 8Plots.mm,
+        )
+    end
+end
+
+"""
+    porkchop_plot(grid::PorkchopGrid; kwargs...)
+
+Create a porkchop plot from a pre-computed PorkchopGrid.
+
+# Arguments
+- `grid`: A PorkchopGrid struct containing the computed data
+
+# Keyword Arguments
+- `levels`: Contour levels to plot (default: automatically determined)
+- `tof_contours`: Whether to overlay time-of-flight contour lines (default: true)
+- `tof_levels`: Specific TOF contour levels, or nothing for automatic (default: nothing)
+- `tof_spacing`: Spacing between TOF lines when auto-generating, or nothing for automatic (default: nothing)
+- `time_scale`: Scale factor to divide axis values by for display (default: 1.0).
+  For example, if times are in seconds but you want axes in days, use 86400.0.
+  This ONLY affects axis display, not the calculations.
+- `plot_quantity`: Quantity to plot as contours (default: first quantity in grid).
+  Options: any quantity symbol present in the grid (e.g., :total_dv, :dv_departure, etc.)
+  Can also pass a vector of symbols to generate vertical subplots
+- `title`: Plot title (default: "Porkchop Plot")
+- `xlabel`: X-axis label (default: "Departure Time")
+- `ylabel`: Y-axis label (default: "Arrival Time")
+- `color`: Colormap (default: :turbo). Good options include :turbo, :jet, :plasma
+- Additional keyword arguments are passed to Plots.contourf
+
+# Returns
+- A Plots.jl plot object
+"""
+function Lambert.porkchop_plot(
+    grid::Lambert.PorkchopGrid;
+    levels::Union{Nothing,AbstractVector} = nothing,
+    tof_contours::Bool = true,
+    tof_levels::Union{Nothing,AbstractVector} = nothing,
+    tof_spacing::Union{Nothing,Number} = nothing,
+    time_scale::Number = 1.0,
+    plot_quantity::Union{Symbol,AbstractVector{Symbol}} = first(grid.quantities),
+    title::String = "Porkchop Plot",
+    xlabel::String = "Departure Time",
+    ylabel::String = "Arrival Time",
+    color = :turbo,
+    kwargs...,
+)
+    # Normalize plot_quantity to a vector
+    plot_quantities = plot_quantity isa Symbol ? [plot_quantity] : plot_quantity
+
+    # Validate that all requested quantities are available in the grid
+    for qty in plot_quantities
+        if !haskey(grid, qty)
+            available = join(string.(keys(grid)), ", ")
+            error("Quantity :$qty not found in grid. Available quantities: $available")
+        end
+    end
+
+    # If no valid data was generated, return nothing
+    if all(all(isnan, grid[qty]) for qty in plot_quantities)
+        return nothing
+    end
+
+    # Scale axes for display (does not affect calculations)
+    departure_times_scaled = grid.departure_times ./ time_scale
+    arrival_times_scaled = grid.arrival_times ./ time_scale
+
+    # Create plots for each quantity
+    plots = []
+    for qty in plot_quantities
+        deltav_matrix = grid[qty]
+
+        # Determine contour levels for this quantity
+        qty_levels = if levels === nothing
+            # Automatically determine contour levels
+            valid_dv = filter(!isnan, deltav_matrix)
+            if !isempty(valid_dv)
+                min_dv = minimum(valid_dv)
+                max_dv = maximum(valid_dv)
                 range(min_dv, max_dv, length = 20)
             else
                 0:0.5:10
