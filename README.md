@@ -243,9 +243,68 @@ The AstroCoords integration automatically handles:
 
 This makes it easy to integrate Lambert transfers into broader orbital mechanics workflows using your preferred coordinate representations.
 
+## Porkchop Grid Generation
+
+This package provides functionality for generating porkchop grids - data matrices that contain transfer requirements (ΔV, excess velocity) across different departure and arrival times. This is essential for mission planning in astrodynamics and can be used independently of plotting.
+
+### PorkchopGrid Structure
+
+The `porkchop_grid` function returns a `PorkchopGrid` struct with:
+
+```julia
+# Access grid properties
+grid.departure_times    # Input departure times
+grid.arrival_times      # Input arrival times  
+grid.quantities        # Computed quantities [:total_dv, :dv_departure, ...]
+grid.data             # Dictionary mapping quantities to matrices
+
+# Access data matrices
+total_dv_matrix = grid[:total_dv]           # Total ΔV matrix
+departure_dv = grid[:dv_departure]          # Departure ΔV matrix
+arrival_dv = grid[:dv_arrival]             # Arrival ΔV matrix
+
+# Check available quantities
+haskey(grid, :total_dv)                    # true
+keys(grid)                                 # All available quantity symbols
+```
+
+### Available Quantities
+
+The `quantities` parameter supports:
+
+- **`:total_dv`** (default): Total ΔV required (sum of departure and arrival maneuvers)
+- **`:total_excess_velocity`**: Total excess velocity (V∞) - same as total_dv but with V∞ notation
+- **`:dv_departure`** / **`:excess_velocity_departure`**: Departure ΔV or excess velocity
+- **`:dv_arrival`** / **`:excess_velocity_arrival`**: Arrival ΔV or excess velocity
+
+### Grid Analysis Example
+
+```julia
+# Generate comprehensive grid
+grid = porkchop_grid(μ, earth_state, mars_state, dep_times, arr_times;
+    quantities = [:total_dv, :dv_departure, :dv_arrival])
+
+# Find minimum ΔV transfer
+total_dv = grid[:total_dv]
+min_idx = argmin(filter(!isnan, total_dv))
+min_deltav = total_dv[min_idx]
+
+# Extract optimal departure/arrival times
+optimal_dep_time = grid.departure_times[min_idx[2]]
+optimal_arr_time = grid.arrival_times[min_idx[1]]
+
+println("Optimal transfer: $(min_deltav) km/s")
+println("Departure: $(optimal_dep_time), Arrival: $(optimal_arr_time)")
+
+# Analyze departure vs arrival ΔV contributions
+dep_dv = grid[:dv_departure][min_idx]
+arr_dv = grid[:dv_arrival][min_idx]
+println("Departure ΔV: $(dep_dv) km/s, Arrival ΔV: $(arr_dv) km/s")
+```
+
 ## Porkchop Plots (Plots.jl Extension)
 
-This package includes an optional extension for creating porkchop plots with Plots.jl. A porkchop plot is a contour plot that visualizes transfer requirements (ΔV, excess velocity) across different departure and arrival times, essential for mission planning in astrodynamics.
+This package includes an optional extension for creating porkchop plots with Plots.jl. The plotting functionality can work with either pre-computed grids or generate data on-the-fly.
 
 ![Earth-Mars Transfer Porkchop Plot](examples/earth_mars_porkchop_total_excess_velocity.png)
 
@@ -271,17 +330,7 @@ using Plots  # This activates the LambertPlotsExt extension
 - Multiple quantity visualization with subplots
 - Time scaling and TOF contours
 
-
-### Available Quantities
-
-The `plot_quantity` parameter supports:
-
-- **`:total_dv`** (default): Total ΔV required (sum of departure and arrival maneuvers)
-- **`:total_excess_velocity`**: Total excess velocity (V∞) - same as total_dv but with V∞ notation
-- **`:dv_departure`** / **`:excess_velocity_departure`**: Departure ΔV or excess velocity
-- **`:dv_arrival`** / **`:excess_velocity_arrival`**: Arrival ΔV or excess velocity
-
-### Customization Options
+### Method 1: Direct Plotting (Data Generation + Plotting)
 
 ```julia
 p = porkchop_plot(μ, state1_func, state2_func, departure_times, arrival_times;
@@ -297,6 +346,27 @@ p = porkchop_plot(μ, state1_func, state2_func, departure_times, arrival_times;
     xlabel = "Departure Time",
     ylabel = "Arrival Time",
     color = :turbo                      # Colormap (:turbo, :plasma, :jet, etc.)
+)
+```
+
+### Method 2: Plot from Pre-computed Grid (Recommended for Multiple Plots)
+
+```julia
+# Generate grid once (expensive computation)
+grid = porkchop_grid(μ, earth_state, mars_state, departure_times, arrival_times;
+    quantities = [:total_dv, :dv_departure, :dv_arrival])
+
+# Create multiple plots with different settings (fast)
+p1 = porkchop_plot(grid; plot_quantity = :total_dv, title = "Total ΔV")
+p2 = porkchop_plot(grid; plot_quantity = :dv_departure, title = "Departure ΔV", color = :plasma)
+p3 = porkchop_plot(grid; plot_quantity = [:total_dv, :dv_departure], title = "Multi-plot")
+
+# Experiment with different time scales and contour settings
+p4 = porkchop_plot(grid; 
+    time_scale = 86400.0,      # Display in days
+    tof_contours = true,
+    tof_spacing = 50*86400,    # TOF lines every 50 days
+    levels = 5:0.5:15          # Custom contour levels
 )
 ```
 
