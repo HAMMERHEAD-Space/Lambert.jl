@@ -11,11 +11,12 @@ A Julia package for solving Lambert's problem with multiple solver algorithms, a
 ## Available Solvers
 
 ### Universal Solvers
-- **GoodingSolver**: R. H. Gooding's algorithm (1990) - Robust and accurate
+- **GoodingSolver**: R. H. Gooding's algorithm (1990) - Robust and accurate, multi-revolution capable
 - **IzzoSolver**: D. Izzo's modern algorithm (2015) - High performance, few iterations required
-- **ValladoSolver**: D. A. Vallado's universal formulation with bisection (2013) - Guaranteed convergence
+- **ValladoSolver**: D. A. Vallado's universal formulation with bisection (2013) - Guaranteed convergence, multi-revolution capable
 - **AroraSolver**: N. Arora & R. P. Russell's cosine transformation (2013) - Fast and robust
 - **RussellSolver**: R. P. Russell's vercosine formulation (2019/2021) - High precision, up to third-order convergence
+- **McElreathSolver**: J. McElreath, I. M. Down & M. Majji's Sundman-transform approach (2025) - Ultra-revolution capable, unified elliptic/hyperbolic formulation
 
 ### P-Solvers  
 - **BattinSolver**: R. H. Battin's elegant algorithm (1984) - Improves on Gauss, removes 180° singularity
@@ -24,11 +25,8 @@ A Julia package for solving Lambert's problem with multiple solver algorithms, a
 ### Eccentricity-Based Solvers
 - **AvanziniSolver**: G. Avanzini's eccentricity-based method (2008) - Single revolution only
 
-## Potential Future Solvers
-- **LancasterBlanchardSolver**: E. R. Lancaster & R. C. Blanchard's unified method (1969) - Industry standard
-- **PrussingSolver**: J. E. Prussing's p-iteration method (2000) - Educational and multi-rev optimization
-- **KlumppSolver**: A. R. Klumpp's spacecraft onboard algorithm (1999) - Fast convergence, minimal memory
-- **OlympioMarmoratSolver**: J. T. Olympio & J. P. Marmorat's global optimization (2007) - Handles multiple minima
+## Potential Future Directions
+- **Perturbed Lambert Solvers**: Algorithms that account for non-Keplerian perturbations (J2, drag, third-body, SRP) during the transfer, enabling higher-fidelity trajectory design without iterative corrections
 
 ## Usage
 
@@ -89,10 +87,11 @@ v1, v2, numiter, retcode = battin1984(μ, r1, r2, tof)
 # - izzo2015(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=35, atol=1e-5, rtol=1e-7)
 # - battin1984(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=35, atol=1e-5, rtol=1e-7)
 # - gauss1809(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=250, atol=1e-5, rtol=1e-7)
-# - vallado2013(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=100, atol=1e-5, rtol=1e-7)
+# - vallado2013(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=100, rtol=1e-7)
 # - arora2013(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=35, atol=1e-5, rtol=1e-7)
 # - avanzini2008(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=35, atol=1e-5, rtol=1e-7)
 # - russell2021(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=50, rtol=1e-14, order=3)
+# - mcelreath2025(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=25, rtol=1e-10)
 ```
 
 ### Solver Parameters
@@ -111,11 +110,12 @@ Each solver supports different parameters based on their implementation:
 | Gooding | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Izzo | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Battin | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
-| Vallado | ✓* | ✓ | ✗ | ✓ | ✗ | ✓ | - |
+| Vallado | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | - |
 | Gauss | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Arora | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | - |
 | Avanzini | ✓* | ✓ | ✗ | ✓ | ✓ | ✓ | - |
 | Russell | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | order (1-3) |
+| McElreath | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | - |
 
 *Only M=0 supported
 
@@ -141,6 +141,9 @@ russell_halley = RussellSolver(order=2)
 
 # Multi-revolution with Russell
 russell_multirev = RussellSolver(M=2, low_path=true)
+
+# McElreath solver — excellent for ultra-high revolution counts
+mcelreath_solver = McElreathSolver(M=100, low_path=true)
 ```
 
 ### Automatic Algorithm Selection
@@ -163,7 +166,8 @@ The heuristic considers the transfer angle and number of revolutions:
 
 | Condition | Selected Solver |
 |-----------|----------------|
-| Multi-revolution (M > 0) | RussellSolver |
+| Ultra-high revolution (M > 10) | McElreathSolver |
+| Multi-revolution (0 < M ≤ 10) | RussellSolver |
 | Near-180° transfer (within 5°) | RussellSolver |
 | Short transfer (< 45°) | GoodingSolver |
 | Medium transfer (45°–270°) | IzzoSolver |
@@ -175,12 +179,13 @@ The heuristic considers the transfer angle and number of revolutions:
 |--------|----------|-------|-----------|------------|-------|
 | Gooding | Excellent | Fast | ✓ | High | Most reliable overall |
 | Izzo | Excellent | Very Fast | ✓ | High | Modern, highly optimized |
-| Vallado | Good | Slow | ✓ | Very High | Guaranteed convergence |
+| Vallado | Good | Slow | ✓ | Very High | Guaranteed convergence (bisection) |
 | Battin | Good | Medium | ✓ | Medium | Classic, well-tested |
 | Gauss | Poor | Medium | ✓† | Low | Historical interest only |
 | Arora | Excellent | Fast | ✓ | High | Fast cosine transformation |
 | Avanzini | Good | Medium | ✗ | Medium | Eccentricity-based |
 | Russell | Excellent | Fast | ✓ | High | Up to 3rd-order convergence |
+| McElreath | Excellent | Fast | ✓ | High | Sundman transform, ultra-high M |
 
 †May have convergence issues for multi-revolution cases  
 
@@ -514,35 +519,27 @@ Porkchop plots include diagonal time-of-flight (TOF) lines by default, showing t
 
 9. **Russell, R. P.** (2021). Complete Lambert solver including second-order sensitivities. *Journal of Guidance, Control, and Dynamics*, 45(2), 196-212. DOI: [10.2514/1.G006089](https://doi.org/10.2514/1.G006089) [Vercosine formulation with higher-order convergence]
 
-10. **Lancaster, E. R., & Blanchard, R. C.** (1969). A unified form of Lambert's theorem. *NASA Technical Note D-5368*. [Industry standard universal variable method]
-
-11. **Klumpp, A. R.** (1999). Performance comparison of Lambert and Kepler algorithms. *AAS/AIAA Astrodynamics Specialist Conference*, Paper AAS 99-139, Girdwood, Alaska. [Real-time spacecraft applications]
-
-12. **Prussing, J. E.** (2000). A class of optimal two-impulse rendezvous using multiple-revolution Lambert solutions. *Journal of the Astronautical Sciences*, 48(2-3), 131-148. [p-iteration educational method]
-
-13. **Sims, J. A., & Flanagan, S. N.** (1999). Preliminary design of low-thrust interplanetary missions. *AAS/AIAA Astrodynamics Specialist Conference*, Paper AAS 99-338. [Low-thrust trajectory optimization]
-
-14. **Olympio, J. T., & Marmorat, J. P.** (2007). Global trajectory optimization: On the selection of the objective function. *Celestial Mechanics and Dynamical Astronomy*, 98(2), 75-93. DOI: [10.1007/s10569-007-9072-y](https://doi.org/10.1007/s10569-007-9072-y) [Global optimization approach]
+10. **McElreath, J., Down, I. M., & Majji, M.** (2025). Solving Lambert's problem using the matrix exponential. *Journal of the Astronautical Sciences*, 72(10). DOI: [10.1007/s40295-024-00438-z](https://doi.org/10.1007/s40295-024-00438-z) [Sundman-transform approach with unified elliptic/hyperbolic formulation]
 
 ### Historical and Theoretical Background
 
-15. **Lambert, J. H.** (1761). *Insigniores orbitae cometarum proprietates*. Augsburg: Eberhard Klett. [Original Lambert's problem formulation]
+11. **Lambert, J. H.** (1761). *Insigniores orbitae cometarum proprietates*. Augsburg: Eberhard Klett. [Original Lambert's problem formulation]
 
-16. **Battin, R. H.** (1987). *An Introduction to the Mathematics and Methods of Astrodynamics* (Revised Edition). AIAA Education Series. ISBN: 978-1563473432 [Comprehensive treatment of Lambert's problem]
+12. **Battin, R. H.** (1987). *An Introduction to the Mathematics and Methods of Astrodynamics* (Revised Edition). AIAA Education Series. ISBN: 978-1563473432 [Comprehensive treatment of Lambert's problem]
 
-17. **Curtis, H. D.** (2013). *Orbital Mechanics for Engineering Students* (3rd ed.). Butterworth-Heinemann. ISBN: 978-0080977478 [Engineering-focused Lambert problem treatment]
+13. **Curtis, H. D.** (2013). *Orbital Mechanics for Engineering Students* (3rd ed.). Butterworth-Heinemann. ISBN: 978-0080977478 [Engineering-focused Lambert problem treatment]
 
 ### Implementation and Validation References
 
-18. **Martínez Garrido, J., et al.** LambertHub: A Python library for Lambert's problem solvers. GitHub repository: [https://github.com/jorgepiloto/lamberthub](https://github.com/jorgepiloto/lamberthub) [Original Python implementation this package is based on]
+14. **Martínez Garrido, J., et al.** LambertHub: A Python library for Lambert's problem solvers. GitHub repository: [https://github.com/jorgepiloto/lamberthub](https://github.com/jorgepiloto/lamberthub) [Original Python implementation this package is based on]
 
-19. **Der, G. J.** (1997). The superior Lambert algorithm. *AAS/AIAA Astrodynamics Conference*, Paper AAS 97-720, Sun Valley, Idaho. [Advanced validation test cases]
+15. **Der, G. J.** (1997). The superior Lambert algorithm. *AAS/AIAA Astrodynamics Conference*, Paper AAS 97-720, Sun Valley, Idaho. [Advanced validation test cases]
 
 ### Performance and Numerical Analysis
 
-20. **Roth, W.** (1996). Multiple revolution solutions for Lambert's problem. *AAS/AIAA Spaceflight Mechanics Meeting*, Paper AAS 96-152, Austin, Texas.
+16. **Roth, W.** (1996). Multiple revolution solutions for Lambert's problem. *AAS/AIAA Spaceflight Mechanics Meeting*, Paper AAS 96-152, Austin, Texas.
 
-21. **Thompson, R. C.** (1964). A unified algorithm for Lambert's problem. *Journal of Guidance, Control, and Dynamics*, 7(2), 139-145. [Early computer-era algorithm development]
+17. **Thompson, R. C.** (1964). A unified algorithm for Lambert's problem. *Journal of Guidance, Control, and Dynamics*, 7(2), 139-145. [Early computer-era algorithm development]
 
 ## Citing
 
@@ -560,4 +557,4 @@ If you use `Lambert.jl` in your work, please consider citing it.
 
 ## Acknowledgments
 
-This implementation is based on the excellent Python `lamberthub` library by Jorge Martínez Garrido and contributors https://github.com/jorgepiloto/lamberthub. The original algorithms and test cases have been carefully ported to Julia while maintaining numerical accuracy and performance characteristics.
+This implementation is inspired and partially based on the excellent Python `lamberthub` library by Jorge Martínez Garrido and contributors https://github.com/jorgepiloto/lamberthub. Those original algorithms and test cases have been carefully ported to Julia while maintaining numerical accuracy and performance characteristics.

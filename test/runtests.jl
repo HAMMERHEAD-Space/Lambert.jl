@@ -21,14 +21,29 @@ const ALL_SOLVERS = [
     AroraSolver(),
     AvanziniSolver(),
     RussellSolver(),
+    McElreathSolver(),
 ]
 
 # Robust solvers (excluding those with known accuracy issues)
-const ROBUST_SOLVERS =
-    [GoodingSolver(), IzzoSolver(), BattinSolver(), ValladoSolver(), RussellSolver()]
+const ROBUST_SOLVERS = [
+    GoodingSolver(),
+    IzzoSolver(),
+    BattinSolver(),
+    ValladoSolver(),
+    RussellSolver(),
+    McElreathSolver(),
+]
 
-const MULTIREV_SOLVERS =
-    [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolver(), RussellSolver()]
+const MULTIREV_SOLVERS = [
+    IzzoSolver(),
+    BattinSolver(),
+    GaussSolver(),
+    AroraSolver(),
+    RussellSolver(),
+    McElreathSolver(),
+    GoodingSolver(),
+    ValladoSolver(),
+]
 
 @testset "AstroProblemsLambert.jl Tests" begin
     # Run existing Lambert solver tests

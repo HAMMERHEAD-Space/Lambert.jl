@@ -86,18 +86,6 @@ function gooding1990(
     atol::Float64 = 1e-5,
     rtol::Float64 = 1e-7,
 )
-    #TODO: Multi-revolution extension requires complex modifications:
-    # 1. Extending tlamb function to handle M > 0 properly in series computations
-    # 2. Modifying initial guess in xlamb for multi-rev cases (currently only handles M=0)
-    # 3. Adding proper handling of multiple solutions (2M + 1 solutions exist)
-    # 4. Implementing solution selection logic for high/low path in multi-rev cases  
-    # 5. Extending vlamb function to compute correct velocity components
-    # Reference: Gooding (1990) focused on single-rev, extensions needed for multi-rev
-    # See recent work on universal approaches and Izzo's multi-rev handling for guidance
-    (M > 0) && error(
-        "Multi-revolution case not implemented - requires significant algorithm extension",
-    )
-
     # Check that input parameters are safe
     assert_parameters_are_valid(μ, r1, r2, tof, M)
 
@@ -400,7 +388,10 @@ end
 """
     xlamb(m, q, qsqfm1, tin, maxiter, atol, rtol)
 
-Auxiliary routine for finding the independent variable.
+Auxiliary routine for finding the independent variable x.
+For m=0: returns a single solution.
+For m>0: returns two solutions (n=2) with x as the first and xpl as the second,
+or one solution at the minimum-time boundary.
 """
 function xlamb(
     m::Int,
@@ -411,21 +402,18 @@ function xlamb(
     atol::Float64,
     rtol::Float64,
 )
-    # Declare auxiliary parameters
     xpl = 0.0
     c0 = 1.7
     c1 = 0.5
     c2 = 0.03
     thr2 = atan(qsqfm1, 2.0 * q) / π
 
-    # Auxiliary function for 8th root
     d8rt(x) = x^(1/8)
 
     if m == 0
         # Single-rev starter
         n = 1
 
-        # Call TLAMB routine
         t0, dt, d2t, d3t = tlamb(m, q, qsqfm1, 0.0, 0)
         tdiff = tin - t0
 
@@ -442,11 +430,74 @@ function xlamb(
             w = 4.0 / (4.0 + tdiff)
             x = x * (1.0 + x * (c1 * w - c2 * x * √w))
         end
+    else
+        # Multi-rev starter: find the minimum-time x by Halley iteration
+        xm = 1.0 / (1.5 * (m + 0.5) * π)
+        if thr2 < 0.5
+            xm = d8rt(2.0 * thr2) * xm
+        end
+        if thr2 > 0.5
+            xm = (2.0 - d8rt(2.0 - 2.0 * thr2)) * xm
+        end
+
+        # Halley iteration on T'(x) = 0 to find x_min
+        for _iter = 1:maxiter
+            t, dt, d2t, d3t = tlamb(m, q, qsqfm1, xm, 3)
+            if d2t == 0.0
+                break
+            end
+            xmold = xm
+            xm = xm - dt * d2t / (d2t * d2t - dt * d3t / 2.0)
+            if abs(xm - xmold) < atol + rtol * abs(xm)
+                break
+            end
+        end
+
+        # Evaluate T at the minimum
+        t_min, _, _, _ = tlamb(m, q, qsqfm1, xm, 0)
+
+        tdiff_min = tin - t_min
+        if tdiff_min < 0.0
+            # No solution for this m
+            n = 0
+            x = 0.0
+            return n, x, xpl, 0
+        end
+
+        if abs(tdiff_min) < atol
+            # Exactly at minimum time — single solution
+            n = 1
+            x = xm
+            return n, x, xpl, 0
+        end
+
+        # Two solutions exist
+        n = 2
+
+        # Left solution (x < xm): high-energy/short-period
+        # Start from x slightly less than xm
+        t0, _, _, _ = tlamb(m, q, qsqfm1, 0.0, 0)
+        tdiff0 = t0 - tin
+
+        if tdiff0 < 0.0
+            x = 0.0 - 0.5  # fallback far guess
+        else
+            x = xm - √(2.0 * tdiff_min / (abs(d2t) + 1e-15))
+            if x < -1.0
+                x = -1.0 + 1e-5
+            end
+        end
+
+        # Right solution (x > xm): low-energy/long-period
+        xpl = xm + √(2.0 * tdiff_min / (abs(d2t) + 1e-15))
+        if xpl > 1.0
+            xpl = 1.0 - 1e-5
+        end
     end
 
-    # Newton-Raphson iterations
+    # Iterate both solutions
+    # First solution (x)
     numiter = 0
-
     for iter = 1:maxiter
         numiter = iter
         t, dt, d2t, d3t = tlamb(m, q, qsqfm1, x, 2)
@@ -456,10 +507,29 @@ function xlamb(
             xold = x
             x = x + t * dt / (dt * dt + t * d2t / 2.0)
 
-            # Check convergence
-            x_atol, x_rtol = abs(x - xold), abs(x / xold - 1)
+            x_atol = abs(x - xold)
+            x_rtol = abs(xold) > 1e-15 ? abs(x / xold - 1) : x_atol
             if x_atol <= atol && x_rtol <= rtol
                 break
+            end
+        end
+    end
+
+    # Second solution (xpl) for multi-rev
+    if m > 0 && n == 2
+        for iter = 1:maxiter
+            t, dt, d2t, d3t = tlamb(m, q, qsqfm1, xpl, 2)
+            t = tin - t
+
+            if dt != 0.0
+                xpl_old = xpl
+                xpl = xpl + t * dt / (dt * dt + t * d2t / 2.0)
+
+                x_atol = abs(xpl - xpl_old)
+                x_rtol = abs(xpl_old) > 1e-15 ? abs(xpl / xpl_old - 1) : x_atol
+                if x_atol <= atol && x_rtol <= rtol
+                    break
+                end
             end
         end
     end

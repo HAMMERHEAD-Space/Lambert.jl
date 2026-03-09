@@ -471,7 +471,9 @@ end
 Heuristic algorithm selection for Lambert problems based on problem characteristics.
 
 # Selection Logic
-- **Multi-revolution (M > 0)**: Russell (3rd-order convergence, `low_path` support,
+- **Ultra-high revolution (M > 10)**: McElreath (Sundman-transform formulation retains
+  accurate initial guesses and numerical stability at 100,000+ revolutions)
+- **Multi-revolution (0 < M ≤ 10)**: Russell (3rd-order convergence, `low_path` support,
   built-in TOF-minimum safeguards for multi-rev)
 - **Single revolution (M = 0)**:
   - Near-180° transfers (within 5° of π): Russell (vercosine formulation has dedicated
@@ -496,8 +498,11 @@ function select_lambert_algorithm(
 )
     @unpack r1, r2 = problem
 
-    # Compute transfer angle
     dtheta = get_transfer_angle(r1, r2, prograde)
+
+    if M > 10
+        return McElreathSolver(M = M, prograde = prograde, low_path = true)
+    end
 
     if M > 0
         return RussellSolver(M = M, prograde = prograde, low_path = true)

@@ -27,6 +27,7 @@ include("battin_solver.jl")
 include("gauss_solver.jl")
 include("gooding_solver.jl")
 include("izzo_solver.jl")
+include("mcelreath_solver.jl")
 include("vallado_solver.jl")
 include("russell_solver.jl")
 
