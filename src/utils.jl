@@ -11,20 +11,23 @@ Compute the transfer angle of the trajectory.
 # Returns
 - `dtheta`: Transfer angle in radians
 """
-function get_transfer_angle(r1::Vector{<:Number}, r2::Vector{<:Number}, prograde::Bool)
+function get_transfer_angle(
+    r1::AbstractVector{T},
+    r2::AbstractVector{V},
+    prograde::Bool,
+) where {T<:Number,V<:Number}
 
+    RT = promote_type(T, V)
     r1 = SVector{3}(r1[1], r1[2], r1[3])
     r2 = SVector{3}(r2[1], r2[2], r2[3])
 
-    # Check if both position vectors are collinear
     cross_prod = cross(r1, r2)
 
     # Handle collinear case
     if all(cross_prod .≈ 0)
-        return all(sign.(r1) .== sign.(r2)) ? 0.0 : π
+        return all(sign.(r1) .== sign.(r2)) ? 0.0 : RT(π)
     end
 
-    # Use AstroCoords function to get the basic angle between vectors
     θ0 = angle_between_vectors(r1, r2)
 
     # Solve for a unitary vector normal to the vector plane
@@ -35,9 +38,9 @@ function get_transfer_angle(r1::Vector{<:Number}, r2::Vector{<:Number}, prograde
 
     # Fix the value of theta if necessary for prograde/retrograde motion
     if prograde
-        dtheta = α > 0 ? θ0 : 2π - θ0
+        dtheta = α > 0 ? θ0 : 2 * RT(π) - θ0
     else
-        dtheta = α < 0 ? θ0 : 2π - θ0
+        dtheta = α < 0 ? θ0 : 2 * RT(π) - θ0
     end
 
     return dtheta
@@ -56,12 +59,14 @@ Computes a unitary normal vector aligned with the specific angular momentum of t
 # Returns
 - `i_h`: Unitary vector aligned with orbit specific angular momentum
 """
-function get_orbit_normal_vector(r1::Vector{<:Number}, r2::Vector{<:Number}, prograde::Bool)
-    # Compute the normal vector and its projection onto the vertical axis
+function get_orbit_normal_vector(
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
+    prograde::Bool,
+)
     i_h = (r1 × r2) / norm(r1 × r2)
 
-    # Solve the projection onto the positive vertical direction
-    α = dot([0, 0, 1], i_h)
+    α = dot(SVector{3}(0, 0, 1), i_h)
 
     # A prograde orbit always has a positive vertical component
     if prograde
@@ -118,8 +123,8 @@ Basic validation of Lambert problem parameters.
 """
 function assert_parameters_are_valid(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number,
     M::Int,
 )
@@ -156,13 +161,16 @@ end
 Compute basic geometry parameters for Lambert problem.
 Returns (r1_norm, r2_norm, c_norm, dtheta).
 """
-function lambert_geometry(r1::Vector{<:Number}, r2::Vector{<:Number}, prograde::Bool)
+@inline function lambert_geometry(
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
+    prograde::Bool,
+)
     r1_norm = norm(r1)
     r2_norm = norm(r2)
     c_norm = norm(r2 - r1)
     dtheta = get_transfer_angle(r1, r2, prograde)
-
-    return r1_norm, r2_norm, c_norm, dtheta
+    return (r1_norm, r2_norm, c_norm, dtheta)
 end
 
 """
@@ -188,8 +196,8 @@ Check convergence for vectors based on absolute and relative tolerances.
 Returns true if converged.
 """
 @inline function check_convergence(
-    vec_new::Vector{<:Number},
-    vec_old::Vector{<:Number},
+    vec_new::AbstractVector{<:Number},
+    vec_old::AbstractVector{<:Number},
     atol::Float64,
     rtol::Float64,
 )
@@ -202,18 +210,13 @@ end
 
 Create a LambertSolution with proper error handling for failed solutions.
 """
-function create_lambert_solution(
-    v1::Union{AbstractVector,Nothing},
-    v2::Union{AbstractVector,Nothing},
+@inline function create_lambert_solution(
+    v1::AbstractVector,
+    v2::AbstractVector,
     numiter::Int,
     retcode::Symbol,
 )
-    if retcode == :SUCCESS && v1 !== nothing && v2 !== nothing
-        return LambertSolution(v1, v2, numiter, retcode)
-    else
-        zero_v = zero(v1)
-        return LambertSolution(zero_v, zero_v, numiter, retcode)
-    end
+    return LambertSolution(v1, v2, numiter, retcode)
 end
 
 """
@@ -241,13 +244,13 @@ Compute unit vectors for positions and their cross product.
 Returns (i_r1, i_r2, i_h_unnorm).
 """
 @inline function compute_unit_vectors(
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     r1_norm::Number,
     r2_norm::Number,
 )
-    i_r1 = r1 / r1_norm
-    i_r2 = r2 / r2_norm
+    i_r1 = SVector{3}(r1[1], r1[2], r1[3]) / r1_norm
+    i_r2 = SVector{3}(r2[1], r2[2], r2[3]) / r2_norm
     i_h_unnorm = cross(i_r1, i_r2)
     return i_r1, i_r2, i_h_unnorm
 end
@@ -259,14 +262,10 @@ Compute tangential unit vectors for velocity reconstruction.
 Returns (i_t1, i_t2).
 """
 @inline function compute_tangential_unit_vectors(
-    i_h::Vector{<:Number},
-    i_r1::Vector{<:Number},
-    i_r2::Vector{<:Number},
+    i_h::AbstractVector{<:Number},
+    i_r1::AbstractVector{<:Number},
+    i_r2::AbstractVector{<:Number},
 )
-    i_h = SVector{3}(i_h[1], i_h[2], i_h[3])
-    i_r1 = SVector{3}(i_r1[1], i_r1[2], i_r1[3])
-    i_r2 = SVector{3}(i_r2[1], i_r2[2], i_r2[3])
-
     i_t1 = cross(i_h, i_r1)
     i_t2 = cross(i_h, i_r2)
     return i_t1, i_t2
@@ -358,7 +357,7 @@ function compute_unit_vector_geometry(
     i_h_norm = norm(i_h)
 
     if i_h_norm < 1e-10
-        return i_r1, i_r2, [0.0, 0.0, 1.0], 1.0, 0.0  # Default values for collinear case
+        return i_r1, i_r2, SVector{3}(0.0, 0.0, 1.0), 1.0, 0.0
     end
 
     i_h = i_h / i_h_norm
@@ -454,7 +453,7 @@ function validate_lagrange_coefficients(
     # Where fdot = -μ*g/(r1*r2*r1_norm*r2_norm)
 
     # Simplified check: just verify they are finite and reasonable
-    if !all(isfinite.([f, g, gdot]))
+    if !(isfinite(f) && isfinite(g) && isfinite(gdot))
         return :INVALID_LAGRANGE_COEFFICIENTS
     end
 
@@ -472,12 +471,15 @@ end
 Heuristic algorithm selection for Lambert problems based on problem characteristics.
 
 # Selection Logic
-- **Multi-revolution (M > 0)**: Arora (fast, robust) or Izzo (most accurate)
+- **Multi-revolution (M > 0)**: Russell (3rd-order convergence, `low_path` support,
+  built-in TOF-minimum safeguards for multi-rev)
 - **Single revolution (M = 0)**:
+  - Near-180° transfers (within 5° of π): Russell (vercosine formulation has dedicated
+    series expansions near the half-revolution singularity)
   - Short transfers (Δθ < π/4): Gooding (robust for small angles)
-  - Medium transfers (π/4 ≤ Δθ ≤ 3π/2): Izzo (best overall performance)  
-  - Large transfers (Δθ > 3π/2): Arora (handles large angles well)
-  - Near-180° transfers: Battin (designed for this singularity)
+  - Medium transfers (π/4 ≤ Δθ ≤ 3π/2): Izzo (best overall performance)
+  - Large transfers (Δθ > 3π/2): Russell (universal formulation handles large angles
+    naturally via the vercosine variable)
 
 # Arguments
 - `problem`: LambertProblem instance
@@ -497,33 +499,21 @@ function select_lambert_algorithm(
     # Compute transfer angle
     dtheta = get_transfer_angle(r1, r2, prograde)
 
-    # Multi-revolution cases - only Arora and Izzo support this
     if M > 0
-        # Arora is faster and specifically designed for multi-rev
-        # Izzo has better accuracy but more complex
-        if dtheta > π  # Large angle transfers
-            return AroraSolver(M = M, prograde = prograde)
-        else  # Small to medium angle transfers  
-            return IzzoSolver(M = M, prograde = prograde)
-        end
+        return RussellSolver(M = M, prograde = prograde, low_path = true)
     end
 
     # Single revolution cases
-    # Check for near-180° transfer (Battin's specialty)
     if abs(dtheta - π) < π/36  # Within 5 degrees of 180°
-        return BattinSolver(M = M, prograde = prograde)
+        return RussellSolver(M = M, prograde = prograde)
     end
 
-    # General single-rev selection based on transfer angle
     if dtheta < π/4  # Short transfers (~45°)
-        # Gooding is most robust for small angles
         return GoodingSolver(M = M, prograde = prograde)
     elseif dtheta <= 3π/2  # Medium transfers (45° to 270°)
-        # Izzo has best overall performance for typical transfers
         return IzzoSolver(M = M, prograde = prograde)
     else  # Large transfers (> 270°)
-        # Arora handles large angles well
-        return AroraSolver(M = M, prograde = prograde)
+        return RussellSolver(M = M, prograde = prograde)
     end
 end
 

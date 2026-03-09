@@ -74,8 +74,8 @@ Vallado, D. A. (2001). Fundamentals of astrodynamics and applications
 """
 function vallado2013(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,
@@ -147,7 +147,7 @@ function vallado2013(
     retcode = handle_max_iterations(numiter, maxiter)
 
     if retcode != :SUCCESS
-        return nothing, nothing, numiter, retcode
+        return zero(SVector{3,Float64}), zero(SVector{3,Float64}), numiter, retcode
     end
 
     y_val = y_at_psi(ψ, r1_norm, r2_norm, A, stumpff_threshold)

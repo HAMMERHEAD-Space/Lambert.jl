@@ -70,8 +70,8 @@ Solves the Lambert's problem using the Avanzini's method.
 """
 function avanzini2008(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,
@@ -194,8 +194,8 @@ function avanzini2008(
     cart1 = Cartesian(kepler1, μ)
     cart2 = Cartesian(kepler2, μ)
 
-    v1 = [cart1.ẋ, cart1.ẏ, cart1.ż]
-    v2 = [cart2.ẋ, cart2.ẏ, cart2.ż]
+    v1 = SVector{3}(cart1.ẋ, cart1.ẏ, cart1.ż)
+    v2 = SVector{3}(cart2.ẋ, cart2.ẏ, cart2.ż)
 
     return v1, v2, maxiter, :SUCCESS
 end

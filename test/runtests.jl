@@ -3,6 +3,7 @@ using AstroCoords
 using Lambert
 using LinearAlgebra
 using SciMLBase
+using StaticArraysCore
 using Random
 using Statistics
 
@@ -19,12 +20,15 @@ const ALL_SOLVERS = [
     ValladoSolver(),
     AroraSolver(),
     AvanziniSolver(),
+    RussellSolver(),
 ]
 
 # Robust solvers (excluding those with known accuracy issues)
-const ROBUST_SOLVERS = [GoodingSolver(), IzzoSolver(), BattinSolver(), ValladoSolver()]
+const ROBUST_SOLVERS =
+    [GoodingSolver(), IzzoSolver(), BattinSolver(), ValladoSolver(), RussellSolver()]
 
-const MULTIREV_SOLVERS = [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolver()]
+const MULTIREV_SOLVERS =
+    [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolver(), RussellSolver()]
 
 @testset "AstroProblemsLambert.jl Tests" begin
     # Run existing Lambert solver tests
@@ -40,10 +44,93 @@ const MULTIREV_SOLVERS = [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolv
     include("test_porkchop_plot.jl")
 
     # Run performance and allocation tests
-    #TODO: NEED TO REMOVE ALLOCATIONS
-    #include("test_performance.jl")
+    include("test_performance.jl")
 end
 
+
+# Differentiability tests — gated behind LAMBERT_TEST_DIFF environment variable.
+#   "true" / "all"       → all backends (ForwardDiff, Enzyme, Mooncake, PolyesterForwardDiff, Zygote)
+#   "ForwardDiff"        → ForwardDiff only (fast smoke-test)
+#   comma-separated list → specific backends
+#   unset / "false"      → skip
+const _DIFF_ENV = get(ENV, "LAMBERT_TEST_DIFF", "false")
+
+if _DIFF_ENV ∉ ("false", "")
+    # Phase 1: Analytical Jacobian tests — ForwardDiff only, NO ChainRulesCore extension.
+    # ForwardDiff uses Dual number propagation (not ChainRulesCore frule), so the
+    # reference Jacobian differentiates through the actual solver code.
+    using DifferentiationInterface
+    using FiniteDiff
+    using ForwardDiff
+
+    @testset "Analytical Jacobian" begin
+        include("differentiability/test_analytical_jacobian.jl")
+    end
+
+    # Phase 2: Load ChainRulesCore → triggers the LambertChainRulesCoreExt extension,
+    # which installs frule/rrule for Lambert.solve() using the analytical Jacobian.
+    using ChainRulesCore
+    @info "ChainRulesCore loaded — LambertChainRulesCoreExt extension active"
+
+    # Phase 3: AD backend tests — these go through the extension's rules for
+    # reverse-mode backends (Zygote, Mooncake), while ForwardDiff still uses Duals.
+    _run_all = _DIFF_ENV ∈ ("true", "all")
+    _requested = _run_all ? Set{String}() : Set(strip.(split(_DIFF_ENV, ",")))
+    _need(name) = _run_all || name ∈ _requested
+
+    _backend_list = Tuple{String,Any}[]
+
+    if _need("ForwardDiff")
+        push!(_backend_list, ("ForwardDiff", DifferentiationInterface.AutoForwardDiff()))
+    end
+    if _need("Enzyme")
+        using Enzyme
+        push!(
+            _backend_list,
+            (
+                "Enzyme",
+                DifferentiationInterface.AutoEnzyme(;
+                    mode = Enzyme.set_runtime_activity(Enzyme.Forward),
+                ),
+            ),
+        )
+    end
+    if _need("Mooncake")
+        using Mooncake
+        push!(
+            _backend_list,
+            ("Mooncake", DifferentiationInterface.AutoMooncake(; config = nothing)),
+        )
+    end
+    if _need("PolyesterForwardDiff")
+        using PolyesterForwardDiff
+        push!(
+            _backend_list,
+            ("PolyesterForwardDiff", DifferentiationInterface.AutoPolyesterForwardDiff()),
+        )
+    end
+    if _need("Zygote")
+        using Zygote
+        push!(_backend_list, ("Zygote", DifferentiationInterface.AutoZygote()))
+    end
+
+    if isempty(_backend_list)
+        error(
+            "LAMBERT_TEST_DIFF=\"$_DIFF_ENV\" did not match any backend. " *
+            "Valid names: ForwardDiff, Enzyme, Mooncake, PolyesterForwardDiff, Zygote",
+        )
+    end
+
+    const _BACKENDS = Tuple(_backend_list)
+
+    @info "Running AD backend tests with: $(join([b[1] for b in _BACKENDS], ", "))"
+
+    @testset "AD Backends" begin
+        include("differentiability/test_ad_backends.jl")
+    end
+else
+    @info "Skipping differentiability tests (set LAMBERT_TEST_DIFF to enable)"
+end
 
 @testset "Aqua Tests" begin
     Aqua.test_all(

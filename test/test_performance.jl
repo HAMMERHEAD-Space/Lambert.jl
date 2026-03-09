@@ -1,182 +1,208 @@
-# Standard test problem for non-allocation testing
-const μ_earth = 3.986004418e5  # [km³/s²]
-const r1_std = [15945.34, 0.0, 0.0]  # [km]
-const r2_std = [12214.83899, 10249.46731, 0.0]  # [km]
-const tof_std = 76.0 * 60  # [s]
-
 using AllocCheck
+
+const μ_perf = 3.986004418e5
+const r1_perf = [15945.34, 0.0, 0.0]
+const r2_perf = [12214.83899, 10249.46731, 0.0]
+const tof_perf = 76.0 * 60
 
 @testset "Non-Allocating Performance Tests" begin
 
-    @testset "Solver Non-Allocation Tests" begin
-        problem = LambertProblem(μ_earth, r1_std, r2_std, tof_std)
-
-        for solver in ALL_SOLVERS
-            @testset "$(typeof(solver)) Non-Allocating" begin
-                solution = solve(problem, solver)
-                @test solution.retcode == :SUCCESS
-
-                # Use AllocCheck to verify zero allocations
-                # These tests are expected to fail initially until optimizations are complete
-                allocs_vec = check_allocs(solve, (typeof(problem), typeof(solver)))
-                @test length(allocs_vec) == 0
-
-            end
-        end
-    end
-
-    @testset "Problem Construction Non-Allocation" begin
-        # Test non-allocation for problem construction
+    @testset "Problem Construction — Zero Allocation" begin
         allocs_vec = check_allocs(
             LambertProblem,
-            (typeof(μ_earth), typeof(r1_std), typeof(r2_std), typeof(tof_std)),
+            (typeof(μ_perf), typeof(r1_perf), typeof(r2_perf), typeof(tof_perf)),
         )
         @test length(allocs_vec) == 0
     end
 
-    @testset "Heuristic Algorithm Selection Non-Allocation" begin
-        problem = LambertProblem(μ_earth, r1_std, r2_std, tof_std)
-
+    @testset "Heuristic Algorithm Selection — Zero Allocation" begin
+        problem = LambertProblem(μ_perf, r1_perf, r2_perf, tof_perf)
         allocs_vec = check_allocs(select_lambert_algorithm, (typeof(problem),))
         @test length(allocs_vec) == 0
     end
 
-    @testset "Multi-Revolution Non-Allocation" begin
-
-        for solver in MULTIREV_SOLVERS
-            for M in [1, 2]
-                # Use longer time of flight for multi-revolution cases to ensure feasible solutions
-                problem = LambertProblem(μ_earth, r1_std, r2_std, tof_std * (3 + 2*M))
-                @testset "$(typeof(solver)) M=$M Non-Allocating" begin
-                    solver_multirev = typeof(solver)(M = M)
-
-                    solution = solve(problem, solver_multirev)
-                    # Some solvers may have convergence issues for multi-rev cases
-                    @test solution.retcode in [:SUCCESS, :MAXIMUM_ITERATIONS]
-
-                    allocs_vec =
-                        check_allocs(solve, (typeof(problem), typeof(solver_multirev)))
-                    @test length(allocs_vec) == 0
-                end
-            end
-        end
-    end
-
-    @testset "Prograde vs Retrograde Non-Allocation" begin
-        problem = LambertProblem(μ_earth, r1_std, r2_std, tof_std)
-
-        # Test both prograde and retrograde for non-allocation
-        for solver in ROBUST_SOLVERS
-            for prograde in [true, false]
-                @testset "$(typeof(solver)) Prograde=$prograde Non-Allocating" begin
-                    solver_direction = typeof(solver)(prograde = prograde)
-
-                    solution = solve(problem, solver_direction)
-                    @test solution.retcode == :SUCCESS
-
-                    allocs_vec =
-                        check_allocs(solve, (typeof(problem), typeof(solver_direction)))
-                    @test length(allocs_vec) == 0
-                end
-            end
-        end
-    end
-
-    @testset "Utility Function Non-Allocation" begin
-        # Test key utility functions that should be non-allocating
-
-        @testset "Stumpff Functions Non-Allocation" begin
-            allocs_vec = check_allocs(AstroProblemsLambert.c2, (Float64,))
-            @test length(allocs_vec) == 0
-
-            allocs_vec = check_allocs(AstroProblemsLambert.c3, (Float64,))
+    @testset "Utility Functions — Zero Allocation" begin
+        @testset "Stumpff c2" begin
+            allocs_vec = check_allocs(Lambert.c2, (Float64,))
             @test length(allocs_vec) == 0
         end
 
-        @testset "Convergence Check Non-Allocation" begin
+        @testset "Stumpff c3" begin
+            allocs_vec = check_allocs(Lambert.c3, (Float64,))
+            @test length(allocs_vec) == 0
+        end
+
+        @testset "Scalar check_convergence" begin
             allocs_vec = check_allocs(
-                AstroProblemsLambert.check_convergence,
+                Lambert.check_convergence,
                 (Float64, Float64, Float64, Float64),
             )
             @test length(allocs_vec) == 0
         end
 
-        @testset "Geometry Functions Non-Allocation" begin
-            allocs_vec = check_allocs(
-                AstroProblemsLambert.compute_semiperimeter,
-                (Float64, Float64, Float64),
-            )
+        @testset "compute_semiperimeter" begin
+            allocs_vec =
+                check_allocs(Lambert.compute_semiperimeter, (Float64, Float64, Float64))
             @test length(allocs_vec) == 0
         end
 
-        @testset "Other Inline Utility Functions" begin
-            # handle_max_iterations - should be non-allocating
-            allocs_vec =
-                check_allocs(AstroProblemsLambert.handle_max_iterations, (Int, Int))
+        @testset "handle_max_iterations" begin
+            allocs_vec = check_allocs(Lambert.handle_max_iterations, (Int, Int))
+            @test length(allocs_vec) == 0
+        end
+
+        @testset "assert_transfer_angle_not_zero" begin
+            allocs_vec = check_allocs(Lambert.assert_transfer_angle_not_zero, (Float64,))
+            @test length(allocs_vec) == 0
+        end
+
+        @testset "assert_transfer_angle_not_pi" begin
+            allocs_vec = check_allocs(Lambert.assert_transfer_angle_not_pi, (Float64,))
             @test length(allocs_vec) == 0
         end
     end
 
-    @testset "Solver Parameter Variation Non-Allocation" begin
-        problem = LambertProblem(μ_earth, r1_std, r2_std, tof_std)
+    @testset "Izzo Solver Utilities — Zero Allocation" begin
+        allocs_vec = check_allocs(Lambert.compute_y, (Float64, Float64))
+        @test length(allocs_vec) == 0
 
-        # Test with different tolerance settings  
-        tolerance_settings = [
-            (1e-4, 1e-6),   # Relaxed
-            (1e-6, 1e-8),   # Standard  
-            (1e-8, 1e-10),  # Tight
+        allocs_vec = check_allocs(
+            Lambert.reconstruct,
+            (Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64),
+        )
+        @test length(allocs_vec) == 0
+    end
+
+    @testset "Vector Reconstruction — Zero Allocation" begin
+        @testset "reconstruct_velocities_from_components" begin
+            allocs_vec = check_allocs(
+                Lambert.reconstruct_velocities_from_components,
+                (
+                    Float64,
+                    Float64,
+                    Float64,
+                    Float64,
+                    SVector{3,Float64},
+                    SVector{3,Float64},
+                    SVector{3,Float64},
+                    SVector{3,Float64},
+                ),
+            )
+            @test length(allocs_vec) == 0
+        end
+
+        @testset "reconstruct_velocities_fg" begin
+            allocs_vec = check_allocs(
+                Lambert.reconstruct_velocities_fg,
+                (Float64, Float64, Float64, SVector{3,Float64}, SVector{3,Float64}),
+            )
+            @test length(allocs_vec) == 0
+        end
+    end
+
+    @testset "Solver Zero-Allocation Tests" begin
+        problem = LambertProblem(μ_perf, r1_perf, r2_perf, tof_perf)
+
+        zero_alloc_solvers = [
+            IzzoSolver(),
+            GaussSolver(),
+            AroraSolver(),
+            ValladoSolver(),
+            RussellSolver(),
+            GoodingSolver(),
+            BattinSolver(),
         ]
 
-        for (atol, rtol) in tolerance_settings
-            @testset "Tolerance atol=$atol rtol=$rtol Non-Allocating" begin
-                solver = IzzoSolver(atol = atol, rtol = rtol)
-
-                solution = solve(problem, solver)
-                @test solution.retcode == :SUCCESS
-
-                allocs_vec = check_allocs(solve, (typeof(problem), typeof(solver)))
-                @test length(allocs_vec) == 0
+        for solver in zero_alloc_solvers
+            name = string(typeof(solver))
+            @testset "$name" begin
+                allocs = check_allocs(solve, (typeof(problem), typeof(solver)))
+                @test length(allocs) == 0
             end
         end
     end
 
-    @testset "Specialized Solver Functions Non-Allocation" begin
-        # Test solver-specific utility functions that should be non-allocating
+    @testset "Solver Parameter Variation — Zero Allocation" begin
+        problem = LambertProblem(μ_perf, r1_perf, r2_perf, tof_perf)
 
-        @testset "Izzo Solver Utilities" begin
-            # Test compute_y function from Izzo solver
-            allocs_vec = check_allocs(AstroProblemsLambert.compute_y, (Float64, Float64))
-            @test length(allocs_vec) == 0
-
-            allocs_vec = check_allocs(
-                AstroProblemsLambert.reconstruct,
-                (Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64),
-            )
-            @test length(allocs_vec) == 0
+        for (atol, rtol) in [(1e-4, 1e-6), (1e-6, 1e-8), (1e-8, 1e-10)]
+            @testset "IzzoSolver atol=$atol rtol=$rtol" begin
+                solver = IzzoSolver(atol = atol, rtol = rtol)
+                allocs = check_allocs(solve, (typeof(problem), typeof(solver)))
+                @test length(allocs) == 0
+            end
         end
     end
 
-    @testset "Vector Reconstruction Functions" begin
+    @testset "Prograde vs Retrograde — Zero Allocation" begin
+        problem = LambertProblem(μ_perf, r1_perf, r2_perf, tof_perf)
 
-        allocs_vec = check_allocs(
-            AstroProblemsLambert.reconstruct_velocities_from_components,
-            (
-                Float64,
-                Float64,
-                Float64,
-                Float64,
-                Vector{Float64},
-                Vector{Float64},
-                Vector{Float64},
-                Vector{Float64},
-            ),
-        )
-        @test length(allocs_vec) == 0
+        for solver in ROBUST_SOLVERS
+            name = string(typeof(solver))
+            for prograde in [true, false]
+                @testset "$name prograde=$prograde" begin
+                    solver_dir = typeof(solver)(prograde = prograde)
+                    allocs = check_allocs(solve, (typeof(problem), typeof(solver_dir)))
+                    @test length(allocs) == 0
+                end
+            end
+        end
+    end
 
-        allocs_vec = check_allocs(
-            AstroProblemsLambert.reconstruct_velocities_fg,
-            (Float64, Float64, Float64, Vector{Float64}, Vector{Float64}),
-        )
-        @test length(allocs_vec) == 0
+    @testset "Analytical Jacobian — Zero Allocation" begin
+        problem = LambertProblem(μ_perf, r1_perf, r2_perf, tof_perf)
+        sol = solve(problem, IzzoSolver())
+
+        @testset "lambert_jacobian" begin
+            allocs = check_allocs(lambert_jacobian, (typeof(problem), typeof(sol)))
+            @test length(allocs) == 0
+        end
+
+        @testset "_twobody_stm" begin
+            allocs = check_allocs(
+                Lambert._twobody_stm,
+                (SVector{3,Float64}, SVector{3,Float64}, Float64, Float64),
+            )
+            @test length(allocs) == 0
+        end
+
+        @testset "_solve_kepler_universal" begin
+            allocs = check_allocs(
+                Lambert._solve_kepler_universal,
+                (Float64, Float64, Float64, Float64, Float64),
+            )
+            @test length(allocs) == 0
+        end
+
+        @testset "_mu_orbit_sensitivity" begin
+            allocs = check_allocs(
+                Lambert._mu_orbit_sensitivity,
+                (
+                    SVector{3,Float64},
+                    SVector{3,Float64},
+                    Float64,
+                    Float64,
+                    SMatrix{3,3,Float64,9},
+                    SMatrix{3,3,Float64,9},
+                    SMatrix{3,3,Float64,9},
+                    SMatrix{3,3,Float64,9},
+                ),
+            )
+            @test length(allocs) == 0
+        end
+    end
+
+    @testset "Multi-Revolution — Zero Allocation" begin
+        for solver in MULTIREV_SOLVERS
+            name = string(typeof(solver))
+            for M in [1, 2]
+                problem = LambertProblem(μ_perf, r1_perf, r2_perf, tof_perf * (3 + 2*M))
+                @testset "$name M=$M" begin
+                    solver_mr = typeof(solver)(M = M)
+                    allocs = check_allocs(solve, (typeof(problem), typeof(solver_mr)))
+                    @test length(allocs) == 0
+                end
+            end
+        end
     end
 end

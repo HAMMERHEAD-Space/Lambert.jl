@@ -75,8 +75,8 @@ Conference, Hilton Head, SC. Paper AAS 13-728.
 """
 function arora2013(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,
@@ -171,21 +171,25 @@ function arora2013(
         # The final orbit is expected to be an ellipse
         if M == 0
             # A collection of auxiliary independent variable values
-            k_set = [-1.41, -1.38, -1.00, -1/2, 0, 1/√2]
+            k_set = SVector{6}(-1.41, -1.38, -1.00, -1/2, 0, 1/√2)
 
-            # Precomputed values of W(k) required for the zero-rev initial guess
-            W_set = [
+            W_set = SVector{6}(
                 4839.684497246,
                 212.087279879,
                 5.712388981,
                 1.954946607,
                 1.110720735,
                 0.6686397730,
-            ]
+            )
 
             # Time of flight for each one of the previous auxiliary values
-            t_set = [get_TOF(k, τ, S, W) for (k, W) in zip(k_set, W_set)]
-            tof_m141, tof_m138, tof_m1, tof_m1half, tof_0, tof_1oversq2 = t_set
+            _tof(k, W) = get_TOF(k, τ, S, W)
+            tof_m141 = _tof(k_set[1], W_set[1])
+            tof_m138 = _tof(k_set[2], W_set[2])
+            tof_m1 = _tof(k_set[3], W_set[3])
+            tof_m1half = _tof(k_set[4], W_set[4])
+            tof_0 = _tof(k_set[5], W_set[5])
+            tof_1oversq2 = _tof(k_set[6], W_set[6])
 
             # Filter out the region
             if tof_hat <= tof_0
@@ -311,7 +315,7 @@ function arora2013(
     retcode = handle_max_iterations(numiter, maxiter)
 
     if retcode != :SUCCESS
-        return nothing, nothing, numiter, retcode
+        return zero(SVector{3,Float64}), zero(SVector{3,Float64}), numiter, retcode
     end
 
     # Evaluate f and g functions
@@ -367,7 +371,13 @@ function get_W(k::Number, M::Int; ε::Float64 = 2e-2)
     elseif sq2 - ε <= k <= sq2 + ε
         # Direct transfer, no complete revolutions (M = 0)
         v = k - sq2
-        v2, v3, v4, v5, v6, v7, v8 = [v^i for i = 2:8]
+        v2 = v * v
+        v3 = v2 * v
+        v4 = v2 * v2
+        v5 = v4 * v
+        v6 = v4 * v2
+        v7 = v4 * v3
+        v8 = v4 * v4
 
         W =
             (√2 / 3) - (1 / 5) * v + (2 / 35) * sq2 * v2 - (2 / 63) * v3 +
@@ -390,7 +400,12 @@ function get_Wprime(k::Number, W::Number; ε::Float64 = 2e-2)
         # Series derivative
         sq2 = √2
         v = k - sq2
-        v2, v3, v4, v5, v6, v7 = [v^i for i = 2:7]
+        v2 = v * v
+        v3 = v2 * v
+        v4 = v2 * v2
+        v5 = v4 * v
+        v6 = v4 * v2
+        v7 = v4 * v3
 
         W_prime =
             -1/5 + sq2 * v * (4/35) - v2 * (6/63) + sq2 * v3 * (8/231) - v4 * (10/429) +
@@ -412,7 +427,11 @@ function get_W2prime(k::Number, W::Number, W_prime::Number; ε::Float64 = 2e-2)
         # Series second derivative
         sq2 = √2
         v = k - sq2
-        v2, v3, v4, v5, v6 = [v^i for i = 2:6]
+        v2 = v * v
+        v3 = v2 * v
+        v4 = v2 * v2
+        v5 = v4 * v
+        v6 = v4 * v2
 
         W_2prime =
             sq2 * (4/35) - v * (12/63) + sq2 * v2 * (24/231) - v3 * (40/429) +
