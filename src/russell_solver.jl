@@ -482,7 +482,7 @@ end
 Compute initial guess for k in the zero-revolution case using the
 piecewise rational interpolation from Arora & Russell (2013).
 """
-function _russell_initial_guess_zerorev(τ::Float64, S::Float64, tof_hat::Float64, d::Int)
+function _russell_initial_guess_zerorev(τ::Number, S::Number, tof_hat::Number, d::Int)
     sq2 = _RUSSELL_SQRT2
 
     # Parabolic TOF
@@ -687,15 +687,15 @@ Compute departure and arrival velocity vectors from the converged semi-parameter
 related variable p using Lagrange f, g, ġ coefficients.
 """
 function _russell_velocity_from_p(
-    p::Float64,
-    τ::Float64,
-    S::Float64,
+    p::Number,
+    τ::Number,
+    S::Number,
     r1vec::AbstractVector{<:Number},
     r2vec::AbstractVector{<:Number},
-    r1::Float64,
-    r2::Float64,
-    r1pr2::Float64,
-    addTog::Float64,
+    r1::Number,
+    r2::Number,
+    r1pr2::Number,
+    addTog::Number,
 )
     sqrtp = sqrt(p)
     pr12 = p * r1pr2
@@ -777,7 +777,7 @@ function russell2021(
     r2_norm = norm(r2_hat)
     r1hat_norm = 1.0  # norm(r1_hat) by construction
     r2hat_norm = r2_norm
-    tof_hat = Float64(tof / Tref)
+    tof_hat = tof / Tref
 
     # Geometry (from Russell's getGeom)
     r1pr2 = r1hat_norm + r2hat_norm
@@ -798,7 +798,7 @@ function russell2021(
     else
         abstau = sqrt(r1r2 * onePctheta) / r1pr2
     end
-    τ = Float64(d) * abstau
+    τ = d * abstau
 
     τ² = τ^2
     τ³ = τ² * τ

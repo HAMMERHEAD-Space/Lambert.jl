@@ -48,3 +48,26 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Quick AD smoke-test: ForwardDiff only, single platform
+  diff-test:
+    name: Differentiability (ForwardDiff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.11'
+      - uses: julia-actions/cache@v2
+        env:
+          cache-name: cache-artifacts-diff
+        with:
+          path: ~/.julia/artifacts
+          key: Linux-diff-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            Linux-diff-${{ env.cache-name }}-
+            Linux-diff-
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+        env:
+          LAMBERT_TEST_DIFF: "ForwardDiff"

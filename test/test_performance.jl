@@ -149,6 +149,49 @@ const tof_perf = 76.0 * 60
         end
     end
 
+    @testset "Analytical Jacobian — Zero Allocation" begin
+        problem = LambertProblem(μ_perf, r1_perf, r2_perf, tof_perf)
+        sol = solve(problem, IzzoSolver())
+
+        @testset "lambert_jacobian" begin
+            allocs = check_allocs(lambert_jacobian, (typeof(problem), typeof(sol)))
+            @test length(allocs) == 0
+        end
+
+        @testset "_twobody_stm" begin
+            allocs = check_allocs(
+                Lambert._twobody_stm,
+                (SVector{3,Float64}, SVector{3,Float64}, Float64, Float64),
+            )
+            @test length(allocs) == 0
+        end
+
+        @testset "_solve_kepler_universal" begin
+            allocs = check_allocs(
+                Lambert._solve_kepler_universal,
+                (Float64, Float64, Float64, Float64, Float64),
+            )
+            @test length(allocs) == 0
+        end
+
+        @testset "_mu_orbit_sensitivity" begin
+            allocs = check_allocs(
+                Lambert._mu_orbit_sensitivity,
+                (
+                    SVector{3,Float64},
+                    SVector{3,Float64},
+                    Float64,
+                    Float64,
+                    SMatrix{3,3,Float64,9},
+                    SMatrix{3,3,Float64,9},
+                    SMatrix{3,3,Float64,9},
+                    SMatrix{3,3,Float64,9},
+                ),
+            )
+            @test length(allocs) == 0
+        end
+    end
+
     @testset "Multi-Revolution — Zero Allocation" begin
         for solver in MULTIREV_SOLVERS
             name = string(typeof(solver))
