@@ -6,7 +6,7 @@
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 [![DOI](https://zenodo.org/badge/1055854730.svg)](https://doi.org/10.5281/zenodo.17109956)
 
-This package provides multiple Lambert problem solvers ported from the Python `lamberthub` library.
+A Julia package for solving Lambert's problem with multiple solver algorithms, analytical sensitivities, and automatic differentiation support. All solvers are zero-allocation and compatible with the [SciML](https://sciml.ai/) ecosystem.
 
 ## Available Solvers
 
@@ -38,7 +38,7 @@ This package provides two interfaces for solving Lambert problems:
 ### Method 1: Object-Oriented Interface (Recommended)
 
 ```julia
-using AstroProblemsLambert
+using Lambert
 
 # Define the problem
 μ = 3.986004418e5  # Earth's gravitational parameter [km³/s²]
@@ -63,17 +63,16 @@ solver = GoodingSolver(
 solution = solve(problem, solver)
 
 # Extract results
-v1 = solution.v1        # Initial velocity vector [km/s]
-v2 = solution.v2        # Final velocity vector [km/s]
-numiter = solution.numiter  # Number of iterations used
-tpi = solution.tpi      # Time per iteration [seconds]
-retcode = solution.retcode  # :SUCCESS, :MAXIMUM_ITERATIONS, etc.
+v1 = solution.v1           # Initial velocity vector [km/s]
+v2 = solution.v2           # Final velocity vector [km/s]
+numiter = solution.numiter # Number of iterations used
+retcode = solution.retcode # :SUCCESS, :MAXIMUM_ITERATIONS, etc.
 ```
 
 ### Method 2: Direct Algorithm Calls (lamberthub-style)
 
 ```julia
-using AstroProblemsLambert
+using Lambert
 
 # Define the problem parameters
 μ = 3.986004418e5  # Earth's gravitational parameter [km³/s²]
@@ -82,9 +81,9 @@ r2 = [12214.83899, 10249.46731, 0.0]  # Final position [km]
 tof = 76.0 * 60  # Time of flight [seconds]
 
 # Call algorithms directly (returns tuples)
-v1, v2, numiter, tpi = gooding1990(μ, r1, r2, tof, 0, true, true, 35, 1e-5, 1e-7)
+v1, v2, numiter, retcode = gooding1990(μ, r1, r2, tof, 0, true, true, 35, 1e-5, 1e-7)
 v1, v2 = izzo2015(μ, r1, r2, tof)  # Simpler return for some solvers
-v1, v2, numiter, tpi = battin1984(μ, r1, r2, tof)
+v1, v2, numiter, retcode = battin1984(μ, r1, r2, tof)
 
 # Available direct functions:
 # - gooding1990(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=35, atol=1e-5, rtol=1e-7)
@@ -145,6 +144,32 @@ russell_halley = RussellSolver(order=2)
 russell_multirev = RussellSolver(M=2, low_path=true)
 ```
 
+### Automatic Algorithm Selection
+
+When no solver is specified, Lambert.jl automatically selects the best algorithm based on problem characteristics:
+
+```julia
+using Lambert
+
+problem = LambertProblem(μ, r1, r2, tof)
+
+# Let the heuristic choose the solver
+solution = solve(problem)
+
+# Multi-revolution with automatic selection
+solution = solve(problem, M=2, prograde=true)
+```
+
+The heuristic considers the transfer angle and number of revolutions:
+
+| Condition | Selected Solver |
+|-----------|----------------|
+| Multi-revolution (M > 0) | RussellSolver |
+| Near-180° transfer (within 5°) | RussellSolver |
+| Short transfer (< 45°) | GoodingSolver |
+| Medium transfer (45°–270°) | IzzoSolver |
+| Large transfer (> 270°) | RussellSolver |
+
 ## Solver Characteristics
 
 | Solver | Accuracy | Speed | Multi-Rev | Robustness | Notes |
@@ -159,6 +184,82 @@ russell_multirev = RussellSolver(M=2, low_path=true)
 | Russell | Excellent | Fast | ✓ | High | Up to 3rd-order convergence |
 
 †May have convergence issues for multi-revolution cases  
+
+## Sensitivity Analysis
+
+Lambert.jl provides analytical Jacobians of the solution velocities (v₁, v₂) with respect to all inputs (μ, r₁, r₂, tof) via the two-body state transition matrix (STM). This is computed without AD — purely from the universal variable formulation with implicit differentiation of the Kepler equation.
+
+```julia
+using Lambert
+
+problem = LambertProblem(μ, r1, r2, tof)
+solution = solve(problem, IzzoSolver())
+
+# Compute analytical Jacobian
+J = lambert_jacobian(problem, solution)
+
+# Access individual sensitivity blocks
+J.dv1_dr1   # 3×3 SMatrix: ∂v₁/∂r₁
+J.dv1_dr2   # 3×3 SMatrix: ∂v₁/∂r₂
+J.dv1_dtof  # 3-element SVector: ∂v₁/∂tof
+J.dv1_dmu   # 3-element SVector: ∂v₁/∂μ
+J.dv2_dr1   # 3×3 SMatrix: ∂v₂/∂r₁
+J.dv2_dr2   # 3×3 SMatrix: ∂v₂/∂r₂
+J.dv2_dtof  # 3-element SVector: ∂v₂/∂tof
+J.dv2_dmu   # 3-element SVector: ∂v₂/∂μ
+```
+
+The analytical Jacobian is **zero-allocation** and works with any solver's output since the STM is computed from the solution independently of the algorithm that produced it.
+
+### References
+
+- Battin (1999), *An Introduction to the Methods of Astrodynamics*, §9.4
+- Arora & Russell (2014), *Partial Derivatives of the Lambert Problem*
+
+## Automatic Differentiation
+
+Lambert.jl supports automatic differentiation through `solve()` via two mechanisms:
+
+### Direct AD (ForwardDiff)
+
+For solvers that use purely arithmetic operations (Izzo, Gooding, Russell, Battin, Arora, Gauss), ForwardDiff can differentiate directly through the solver:
+
+```julia
+using Lambert, ForwardDiff, StaticArraysCore
+
+function transfer_cost(x)
+    prob = LambertProblem(x[1], SVector{3}(x[2:4]...), SVector{3}(x[5:7]...), x[8])
+    sol = solve(prob, IzzoSolver())
+    return sum(sol.v1.^2)  # minimize departure energy
+end
+
+x0 = [μ; r1; r2; tof]
+gradient = ForwardDiff.gradient(transfer_cost, x0)
+```
+
+### ChainRulesCore Extension (All AD Backends)
+
+When `ChainRulesCore` is loaded, custom `frule` (forward-mode) and `rrule` (reverse-mode) are provided that use the analytical Jacobian under the hood. This enables compatibility with reverse-mode AD frameworks like Zygote, Enzyme, and Mooncake:
+
+```julia
+using Lambert, ChainRulesCore
+
+# The frule/rrule are automatically used by AD frameworks
+# that go through ChainRulesCore (Zygote, Mooncake, etc.)
+```
+
+### Tested AD Backends
+
+The differentiability test suite validates against:
+- **ForwardDiff.jl** — forward-mode (reference)
+- **Enzyme.jl** — forward/reverse-mode
+- **Mooncake.jl** — reverse-mode
+- **PolyesterForwardDiff.jl** — parallelized forward-mode
+- **Zygote.jl** — source-to-source reverse-mode
+
+## Performance
+
+All solvers and the analytical Jacobian are **zero-allocation**, verified via [AllocCheck.jl](https://github.com/JuliaLang/AllocCheck.jl). The entire computation uses stack-allocated `SVector` and `SMatrix` types from StaticArraysCore.jl with no heap allocation.
 
 ## Testing
 
@@ -178,7 +279,7 @@ This package is fully compatible with [AstroCoords.jl](https://github.com/JuliaS
 ### Usage with Keplerian Coordinates
 
 ```julia
-using AstroProblemsLambert
+using Lambert
 using AstroCoords
 
 # Earth's gravitational parameter
