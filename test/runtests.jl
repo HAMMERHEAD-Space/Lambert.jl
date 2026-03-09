@@ -56,10 +56,24 @@ end
 const _DIFF_ENV = get(ENV, "LAMBERT_TEST_DIFF", "false")
 
 if _DIFF_ENV ∉ ("false", "")
+    # Phase 1: Analytical Jacobian tests — ForwardDiff only, NO ChainRulesCore extension.
+    # ForwardDiff uses Dual number propagation (not ChainRulesCore frule), so the
+    # reference Jacobian differentiates through the actual solver code.
     using DifferentiationInterface
     using FiniteDiff
-    using ForwardDiff  # always loaded — used as reference for analytical Jacobian tests
+    using ForwardDiff
 
+    @testset "Analytical Jacobian" begin
+        include("differentiability/test_analytical_jacobian.jl")
+    end
+
+    # Phase 2: Load ChainRulesCore → triggers the LambertChainRulesCoreExt extension,
+    # which installs frule/rrule for Lambert.solve() using the analytical Jacobian.
+    using ChainRulesCore
+    @info "ChainRulesCore loaded — LambertChainRulesCoreExt extension active"
+
+    # Phase 3: AD backend tests — these go through the extension's rules for
+    # reverse-mode backends (Zygote, Mooncake), while ForwardDiff still uses Duals.
     _run_all = _DIFF_ENV ∈ ("true", "all")
     _requested = _run_all ? Set{String}() : Set(strip.(split(_DIFF_ENV, ",")))
     _need(name) = _run_all || name ∈ _requested
@@ -109,10 +123,10 @@ if _DIFF_ENV ∉ ("false", "")
 
     const _BACKENDS = Tuple(_backend_list)
 
-    @info "Running differentiability tests with backends: $(join([b[1] for b in _BACKENDS], ", "))"
+    @info "Running AD backend tests with: $(join([b[1] for b in _BACKENDS], ", "))"
 
-    @testset "Differentiability" begin
-        include("differentiability/test_differentiability.jl")
+    @testset "AD Backends" begin
+        include("differentiability/test_ad_backends.jl")
     end
 else
     @info "Skipping differentiability tests (set LAMBERT_TEST_DIFF to enable)"
