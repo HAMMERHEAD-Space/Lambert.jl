@@ -82,8 +82,8 @@ Solve Lambert's problem using Gauss' 1809 method following Bate's book.
 """
 function gauss1809(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,
@@ -156,16 +156,16 @@ function gauss1809(
         end
     end
 
-    return zeros(3), zeros(3), maxiter, :MAXIMUM_ITERATIONS
+    return zero(SVector{3,Float64}), zero(SVector{3,Float64}), maxiter, :MAXIMUM_ITERATIONS
 end
 
 # Helper function for X series (equation 5.6-15 from Bate's book)
 function X_at_x(x::Number; order::Int = 50)
-    coefficients = [1.0]
+    term = 1.0
+    total = term
     for n = 3:(3+order-1)
-        coeff = (2 * n) / (2 * n - 1)
-        push!(coefficients, coefficients[end] * coeff * x)
+        term *= (2 * n) / (2 * n - 1) * x
+        total += term
     end
-    X = (4 / 3) * sum(coefficients)
-    return X
+    return (4 / 3) * total
 end

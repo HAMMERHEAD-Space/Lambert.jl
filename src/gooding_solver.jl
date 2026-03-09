@@ -76,8 +76,8 @@ boundary-value problem. Celestial Mechanics and Dynamical Astronomy, 48(2), 145-
 """
 function gooding1990(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,
@@ -122,7 +122,7 @@ function gooding1990(
     retcode = handle_max_iterations(numiter, maxiter)
 
     if retcode != :SUCCESS
-        return nothing, nothing, numiter, retcode
+        return zero(SVector{3,Float64}), zero(SVector{3,Float64}), numiter, retcode
     end
 
     # Final velocity vectors
@@ -137,7 +137,7 @@ end
 
 Auxiliary routine for computing the non-dimensional time of flight.
 """
-function tlamb(m::Int, q::Number, qsqfm1::Number, x::Number, n::Int)
+@inline function tlamb(m::Int, q::Number, qsqfm1::Number, x::Number, n::Int)
     sw = 0.4
     lm1 = n == -1
     l1 = n >= 1
@@ -147,9 +147,10 @@ function tlamb(m::Int, q::Number, qsqfm1::Number, x::Number, n::Int)
     xsq = x * x
     u = (1.0 - x) * (1.0 + x)
 
-    if !lm1
-        dt, d2t, d3t = 0.0, 0.0, 0.0
-    end
+    t = 0.0
+    dt = 0.0
+    d2t = 0.0
+    d3t = 0.0
 
     if lm1 || m > 0 || x < 0.0 || abs(u) > sw
         # Direct computation
@@ -178,7 +179,10 @@ function tlamb(m::Int, q::Number, qsqfm1::Number, x::Number, n::Int)
         end
 
         if lm1
-            t, dt, d2t, d3t = 0, b, bb, aa
+            t = 0.0;
+            dt = b;
+            d2t = bb;
+            d3t = aa
         else
             if qx * u >= 0.0
                 g = x * z + q * u
@@ -408,7 +412,7 @@ function xlamb(
     rtol::Float64,
 )
     # Declare auxiliary parameters
-    xpl = 0
+    xpl = 0.0
     c0 = 1.7
     c1 = 0.5
     c2 = 0.03

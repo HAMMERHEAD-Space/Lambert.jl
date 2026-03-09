@@ -207,19 +207,19 @@ const RTOL = 0.001
             alg_med = select_lambert_algorithm(prob_med)
             @test alg_med isa IzzoSolver
 
-            # Large transfer (~300°) -> Should select Arora
+            # Large transfer (~300°) -> Should select Russell
             r1_large = [7000.0, 0.0, 0.0]
             r2_large = [3500.0, -6062.2, 0.0]  # ~300° transfer  
             prob_large = LambertProblem(μ, r1_large, r2_large, 7200.0)
             alg_large = select_lambert_algorithm(prob_large)
-            @test alg_large isa AroraSolver
+            @test alg_large isa RussellSolver
 
-            # Near-180° transfer -> Should select Battin
+            # Near-180° transfer -> Should select Russell
             r1_180 = [7000.0, 0.0, 0.0]
             r2_180 = [-6900.0, 500.0, 0.0]  # ~176° transfer (within 5° of 180°)
             prob_180 = LambertProblem(μ, r1_180, r2_180, 5400.0)
             alg_180 = select_lambert_algorithm(prob_180)
-            @test alg_180 isa BattinSolver
+            @test alg_180 isa RussellSolver
         end
 
         # Test multi-revolution selection
@@ -228,16 +228,16 @@ const RTOL = 0.001
             r2 = [-3500.0, 6062.2, 0.0]  # ~120° transfer
             prob = LambertProblem(μ, r1, r2, 3600.0)
 
-            # Multi-rev with small angle -> Should select Izzo
+            # Multi-rev with small angle -> Should select Russell
             alg_multirev_small = select_lambert_algorithm(prob, 2)
-            @test alg_multirev_small isa IzzoSolver
+            @test alg_multirev_small isa RussellSolver
             @test alg_multirev_small.M == 2
 
-            # Multi-rev with large angle -> Should select Arora
+            # Multi-rev with large angle -> Should select Russell
             r2_large = [3500.0, -6062.2, 0.0]  # ~300° transfer
             prob_large = LambertProblem(μ, r1, r2_large, 7200.0)
             alg_multirev_large = select_lambert_algorithm(prob_large, 1)
-            @test alg_multirev_large isa AroraSolver
+            @test alg_multirev_large isa RussellSolver
             @test alg_multirev_large.M == 1
         end
 

@@ -15,6 +15,7 @@ This package provides multiple Lambert problem solvers ported from the Python `l
 - **IzzoSolver**: D. Izzo's modern algorithm (2015) - High performance, few iterations required
 - **ValladoSolver**: D. A. Vallado's universal formulation with bisection (2013) - Guaranteed convergence
 - **AroraSolver**: N. Arora & R. P. Russell's cosine transformation (2013) - Fast and robust
+- **RussellSolver**: R. P. Russell's vercosine formulation (2019/2021) - High precision, up to third-order convergence
 
 ### P-Solvers  
 - **BattinSolver**: R. H. Battin's elegant algorithm (1984) - Improves on Gauss, removes 180° singularity
@@ -93,6 +94,7 @@ v1, v2, numiter, tpi = battin1984(μ, r1, r2, tof)
 # - vallado2013(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=100, atol=1e-5, rtol=1e-7)
 # - arora2013(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=35, atol=1e-5, rtol=1e-7)
 # - avanzini2008(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=35, atol=1e-5, rtol=1e-7)
+# - russell2021(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=50, rtol=1e-14, order=3)
 ```
 
 ### Solver Parameters
@@ -115,8 +117,9 @@ Each solver supports different parameters based on their implementation:
 | Gauss | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Arora | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | - |
 | Avanzini | ✓* | ✓ | ✗ | ✓ | ✓ | ✓ | - |
+| Russell | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | order (1-3) |
 
-*Only M=0 supported, †Multi-rev fallback available
+*Only M=0 supported
 
 ### Examples
 
@@ -131,6 +134,15 @@ multi_rev_solver = IzzoSolver(M=1, prograde=true)
 
 # High precision
 precise_solver = IzzoSolver(atol=1e-12, rtol=1e-14)
+
+# Russell solver with third-order convergence (fastest convergence rate)
+russell_solver = RussellSolver(order=3, rtol=1e-14)
+
+# Russell solver with Halley (2nd-order) correction
+russell_halley = RussellSolver(order=2)
+
+# Multi-revolution with Russell
+russell_multirev = RussellSolver(M=2, low_path=true)
 ```
 
 ## Solver Characteristics
@@ -144,6 +156,7 @@ precise_solver = IzzoSolver(atol=1e-12, rtol=1e-14)
 | Gauss | Poor | Medium | ✓† | Low | Historical interest only |
 | Arora | Excellent | Fast | ✓ | High | Fast cosine transformation |
 | Avanzini | Good | Medium | ✗ | Medium | Eccentricity-based |
+| Russell | Excellent | Fast | ✓ | High | Up to 3rd-order convergence |
 
 †May have convergence issues for multi-revolution cases  
 
@@ -397,35 +410,39 @@ Porkchop plots include diagonal time-of-flight (TOF) lines by default, showing t
 
 7. **Avanzini, G.** (2008). A simple Lambert algorithm. *Journal of Guidance, Control, and Dynamics*, 31(6), 1587-1594. DOI: [10.2514/1.35031](https://doi.org/10.2514/1.35031)
 
-8. **Lancaster, E. R., & Blanchard, R. C.** (1969). A unified form of Lambert's theorem. *NASA Technical Note D-5368*. [Industry standard universal variable method]
+8. **Russell, R. P.** (2019). Complete solution of the Lambert problem including non-Keplerian motion and sensitivities. *AIAA SciTech Forum*, Paper AIAA 2019-2456. DOI: [10.2514/6.2019-2456](https://doi.org/10.2514/6.2019-2456)
 
-9. **Klumpp, A. R.** (1999). Performance comparison of Lambert and Kepler algorithms. *AAS/AIAA Astrodynamics Specialist Conference*, Paper AAS 99-139, Girdwood, Alaska. [Real-time spacecraft applications]
+9. **Russell, R. P.** (2021). Complete Lambert solver including second-order sensitivities. *Journal of Guidance, Control, and Dynamics*, 45(2), 196-212. DOI: [10.2514/1.G006089](https://doi.org/10.2514/1.G006089) [Vercosine formulation with higher-order convergence]
 
-10. **Prussing, J. E.** (2000). A class of optimal two-impulse rendezvous using multiple-revolution Lambert solutions. *Journal of the Astronautical Sciences*, 48(2-3), 131-148. [p-iteration educational method]
+10. **Lancaster, E. R., & Blanchard, R. C.** (1969). A unified form of Lambert's theorem. *NASA Technical Note D-5368*. [Industry standard universal variable method]
 
-11. **Sims, J. A., & Flanagan, S. N.** (1999). Preliminary design of low-thrust interplanetary missions. *AAS/AIAA Astrodynamics Specialist Conference*, Paper AAS 99-338. [Low-thrust trajectory optimization]
+11. **Klumpp, A. R.** (1999). Performance comparison of Lambert and Kepler algorithms. *AAS/AIAA Astrodynamics Specialist Conference*, Paper AAS 99-139, Girdwood, Alaska. [Real-time spacecraft applications]
 
-12. **Olympio, J. T., & Marmorat, J. P.** (2007). Global trajectory optimization: On the selection of the objective function. *Celestial Mechanics and Dynamical Astronomy*, 98(2), 75-93. DOI: [10.1007/s10569-007-9072-y](https://doi.org/10.1007/s10569-007-9072-y) [Global optimization approach]
+12. **Prussing, J. E.** (2000). A class of optimal two-impulse rendezvous using multiple-revolution Lambert solutions. *Journal of the Astronautical Sciences*, 48(2-3), 131-148. [p-iteration educational method]
+
+13. **Sims, J. A., & Flanagan, S. N.** (1999). Preliminary design of low-thrust interplanetary missions. *AAS/AIAA Astrodynamics Specialist Conference*, Paper AAS 99-338. [Low-thrust trajectory optimization]
+
+14. **Olympio, J. T., & Marmorat, J. P.** (2007). Global trajectory optimization: On the selection of the objective function. *Celestial Mechanics and Dynamical Astronomy*, 98(2), 75-93. DOI: [10.1007/s10569-007-9072-y](https://doi.org/10.1007/s10569-007-9072-y) [Global optimization approach]
 
 ### Historical and Theoretical Background
 
-13. **Lambert, J. H.** (1761). *Insigniores orbitae cometarum proprietates*. Augsburg: Eberhard Klett. [Original Lambert's problem formulation]
+15. **Lambert, J. H.** (1761). *Insigniores orbitae cometarum proprietates*. Augsburg: Eberhard Klett. [Original Lambert's problem formulation]
 
-14. **Battin, R. H.** (1987). *An Introduction to the Mathematics and Methods of Astrodynamics* (Revised Edition). AIAA Education Series. ISBN: 978-1563473432 [Comprehensive treatment of Lambert's problem]
+16. **Battin, R. H.** (1987). *An Introduction to the Mathematics and Methods of Astrodynamics* (Revised Edition). AIAA Education Series. ISBN: 978-1563473432 [Comprehensive treatment of Lambert's problem]
 
-15. **Curtis, H. D.** (2013). *Orbital Mechanics for Engineering Students* (3rd ed.). Butterworth-Heinemann. ISBN: 978-0080977478 [Engineering-focused Lambert problem treatment]
+17. **Curtis, H. D.** (2013). *Orbital Mechanics for Engineering Students* (3rd ed.). Butterworth-Heinemann. ISBN: 978-0080977478 [Engineering-focused Lambert problem treatment]
 
 ### Implementation and Validation References
 
-16. **Martínez Garrido, J., et al.** LambertHub: A Python library for Lambert's problem solvers. GitHub repository: [https://github.com/jorgepiloto/lamberthub](https://github.com/jorgepiloto/lamberthub) [Original Python implementation this package is based on]
+18. **Martínez Garrido, J., et al.** LambertHub: A Python library for Lambert's problem solvers. GitHub repository: [https://github.com/jorgepiloto/lamberthub](https://github.com/jorgepiloto/lamberthub) [Original Python implementation this package is based on]
 
-17. **Der, G. J.** (1997). The superior Lambert algorithm. *AAS/AIAA Astrodynamics Conference*, Paper AAS 97-720, Sun Valley, Idaho. [Advanced validation test cases]
+19. **Der, G. J.** (1997). The superior Lambert algorithm. *AAS/AIAA Astrodynamics Conference*, Paper AAS 97-720, Sun Valley, Idaho. [Advanced validation test cases]
 
 ### Performance and Numerical Analysis
 
-18. **Roth, W.** (1996). Multiple revolution solutions for Lambert's problem. *AAS/AIAA Spaceflight Mechanics Meeting*, Paper AAS 96-152, Austin, Texas.
+20. **Roth, W.** (1996). Multiple revolution solutions for Lambert's problem. *AAS/AIAA Spaceflight Mechanics Meeting*, Paper AAS 96-152, Austin, Texas.
 
-19. **Thompson, R. C.** (1964). A unified algorithm for Lambert's problem. *Journal of Guidance, Control, and Dynamics*, 7(2), 139-145. [Early computer-era algorithm development]
+21. **Thompson, R. C.** (1964). A unified algorithm for Lambert's problem. *Journal of Guidance, Control, and Dynamics*, 7(2), 139-145. [Early computer-era algorithm development]
 
 ## Citing
 

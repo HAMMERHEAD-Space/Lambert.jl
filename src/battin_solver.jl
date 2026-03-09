@@ -116,7 +116,7 @@ function _K_at_u(u::Number; levels_K::Int = 1000)
             u0 = u0 * (δ - 1)
             σ = σ + u0
         else
-            for val in [1, 2]
+            for val in (1, 2)
                 if val == 1
                     γ = 2 * (3 * n1 + 1) * (6 * n1 - 1) / (9 * (4 * n1 - 1) * (4 * n1 + 1))
                 else
@@ -168,8 +168,8 @@ Solves the Lambert's problem using the Battin's method.
 """
 function battin1984(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,
@@ -217,7 +217,7 @@ function battin1984(
     retcode = converged ? :SUCCESS : handle_max_iterations(iter, maxiter)
 
     if retcode != :SUCCESS
-        return nothing, nothing, iter, retcode
+        return zero(SVector{3,Float64}), zero(SVector{3,Float64}), iter, retcode
     end
 
     # Compute final velocities using converged x value

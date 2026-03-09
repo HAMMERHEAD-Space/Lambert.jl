@@ -14,8 +14,8 @@ solver based on problem characteristics (transfer angle, number of revolutions, 
 
 # Fields
 - `μ::MT`: Gravitational parameter (GM of attracting body)
-- `r1::Vector`: Initial position vector
-- `r2::Vector`: Final position vector  
+- `r1::SVector{3}`: Initial position vector
+- `r2::SVector{3}`: Final position vector  
 - `tof::TT`: Time of flight between r1 and r2
 
 # Examples
@@ -33,13 +33,18 @@ solution = solve(problem, IzzoSolver())
 """
 struct LambertProblem{TT<:Number,RT1<:Number,RT2<:Number,MT<:Number} <: AbstractAstroProblem
     μ::MT
-    r1::Vector{RT1}
-    r2::Vector{RT2}
+    r1::SVector{3,RT1}
+    r2::SVector{3,RT2}
     tof::TT
 end
 
 function LambertProblem(μ::Number, r1::AbstractVector, r2::AbstractVector, tof::Number)
-    return LambertProblem(μ, r1[1:3], r2[1:3], tof)
+    return LambertProblem(
+        μ,
+        SVector{3}(r1[1], r1[2], r1[3]),
+        SVector{3}(r2[1], r2[2], r2[3]),
+        tof,
+    )
 end
 
 function LambertProblem(
@@ -48,9 +53,14 @@ function LambertProblem(
     coord2::AstroCoords.AstroCoord,
     tof::Number,
 )
-    r1 = Cartesian(coord1, μ)[1:3]
-    r2 = Cartesian(coord2, μ)[1:3]
-    return LambertProblem(μ, r1, r2, tof)
+    c1 = Cartesian(coord1, μ)
+    c2 = Cartesian(coord2, μ)
+    return LambertProblem(
+        μ,
+        SVector{3}(c1[1], c1[2], c1[3]),
+        SVector{3}(c2[1], c2[2], c2[3]),
+        tof,
+    )
 end
 
 """

@@ -74,8 +74,8 @@ and Dynamical Astronomy, 121(1), 1-15.
 """
 function izzo2015(
     μ::Number,
-    r1::Vector{<:Number},
-    r2::Vector{<:Number},
+    r1::AbstractVector{<:Number},
+    r2::AbstractVector{<:Number},
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,

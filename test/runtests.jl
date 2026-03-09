@@ -3,6 +3,7 @@ using AstroCoords
 using Lambert
 using LinearAlgebra
 using SciMLBase
+using StaticArraysCore
 using Random
 using Statistics
 
@@ -19,12 +20,15 @@ const ALL_SOLVERS = [
     ValladoSolver(),
     AroraSolver(),
     AvanziniSolver(),
+    RussellSolver(),
 ]
 
 # Robust solvers (excluding those with known accuracy issues)
-const ROBUST_SOLVERS = [GoodingSolver(), IzzoSolver(), BattinSolver(), ValladoSolver()]
+const ROBUST_SOLVERS =
+    [GoodingSolver(), IzzoSolver(), BattinSolver(), ValladoSolver(), RussellSolver()]
 
-const MULTIREV_SOLVERS = [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolver()]
+const MULTIREV_SOLVERS =
+    [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolver(), RussellSolver()]
 
 @testset "AstroProblemsLambert.jl Tests" begin
     # Run existing Lambert solver tests
@@ -40,8 +44,7 @@ const MULTIREV_SOLVERS = [IzzoSolver(), BattinSolver(), GaussSolver(), AroraSolv
     include("test_porkchop_plot.jl")
 
     # Run performance and allocation tests
-    #TODO: NEED TO REMOVE ALLOCATIONS
-    #include("test_performance.jl")
+    include("test_performance.jl")
 end
 
 
