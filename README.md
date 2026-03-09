@@ -28,7 +28,6 @@ This package provides multiple Lambert problem solvers ported from the Python `l
 - **PrussingSolver**: J. E. Prussing's p-iteration method (2000) - Educational and multi-rev optimization
 - **KlumppSolver**: A. R. Klumpp's spacecraft onboard algorithm (1999) - Fast convergence, minimal memory
 - **OlympioMarmoratSolver**: J. T. Olympio & J. P. Marmorat's global optimization (2007) - Handles multiple minima
-- **SimsFlanagainSolver**: J. A. Sims & S. N. Flanagan's low-thrust method (1999) - Continuous thrust trajectories
 
 ## Usage
 
