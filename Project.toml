@@ -1,7 +1,7 @@
 name = "Lambert"
 uuid = "66f5ad62-9998-49cb-a01c-13bfcd13cbb1"
+version = "0.1.2"
 authors = ["Jordan Murphy <jmurphy6895@gmail.com> and contributors"]
-version = "0.1.1"
 
 [deps]
 AstroCoords = "27fb9038-6a9d-4e07-8d5d-d0805b53c4cb"
@@ -18,7 +18,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 LambertPlotsExt = "Plots"
 
 [compat]
-AstroCoords = "0.4"
+AstroCoords = "0.3, 0.4"
 DifferentiationInterface = "0.7"
 LinearAlgebra = "1"
 Parameters = "0.12"
