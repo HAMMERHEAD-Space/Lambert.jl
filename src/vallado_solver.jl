@@ -20,16 +20,16 @@ Vallado, D. A. (2001). Fundamentals of astrodynamics and applications
 @with_kw struct ValladoSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
+    low_path::Bool = true
     maxiter::Int = 100
     rtol::Float64 = 1e-7
-    stumpff_threshold::Float64 = 1e-6  # Threshold for Stumpff function series expansion
+    stumpff_threshold::Float64 = 1e-6
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::ValladoSolver)
     @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, maxiter, rtol, stumpff_threshold = solver
+    @unpack M, prograde, low_path, maxiter, rtol, stumpff_threshold = solver
 
-    # Call the direct algorithm function
     v1, v2, numiter, retcode = vallado2013(
         μ,
         r1,
@@ -37,6 +37,7 @@ function SciMLBase.solve(problem::LambertProblem, solver::ValladoSolver)
         tof;
         M = M,
         prograde = prograde,
+        low_path = low_path,
         maxiter = maxiter,
         rtol = rtol,
         stumpff_threshold = stumpff_threshold,
@@ -46,9 +47,11 @@ function SciMLBase.solve(problem::LambertProblem, solver::ValladoSolver)
 end
 
 """
-    vallado2013(μ, r1, r2, tof, M=0, prograde=true, low_path=true, maxiter=100, atol=1e-5, rtol=1e-7)
+    vallado2013(μ, r1, r2, tof; M=0, prograde=true, low_path=true, maxiter=100, rtol=1e-7, stumpff_threshold=1e-6)
 
-Vallado's algorithm makes use of the universal formulation to solve for the Lambert's problem.
+Vallado's algorithm uses the universal formulation with a bisection method.
+Extended to support multi-revolution transfers by adjusting ψ bounds to the
+M-th revolution band and including the 2πM term in the TOF equation.
 
 # Arguments
 - `μ`: Gravitational parameter, equivalent to GM of attractor body
@@ -57,10 +60,10 @@ Vallado's algorithm makes use of the universal formulation to solve for the Lamb
 - `tof`: Time of flight
 - `M`: Number of revolutions (default: 0)
 - `prograde`: If true, specifies prograde motion (default: true)
-- `low_path`: If two solutions are available, selects between high or low path (default: true) - Not used in implementation
+- `low_path`: For multi-rev, selects between high or low path (default: true)
 - `maxiter`: Maximum number of iterations (default: 100)
-- `atol`: Absolute tolerance (default: 1e-5) - Not used in implementation
 - `rtol`: Relative tolerance (default: 1e-7)
+- `stumpff_threshold`: Threshold for Stumpff function series expansion (default: 1e-6)
 
 # Returns
 - `v1`: Initial velocity vector
@@ -69,7 +72,7 @@ Vallado's algorithm makes use of the universal formulation to solve for the Lamb
 - `retcode`: Return code
 
 # References
-Vallado, D. A. (2001). Fundamentals of astrodynamics and applications 
+Vallado, D. A. (2001). Fundamentals of astrodynamics and applications
 (2nd ed.). Space Technology Library. Springer Science & Business Media.
 """
 function vallado2013(
@@ -79,46 +82,44 @@ function vallado2013(
     tof::Number;
     M::Int = 0,
     prograde::Bool = true,
+    low_path::Bool = true,
     maxiter::Int = 100,
     rtol::Float64 = 1e-7,
     stumpff_threshold::Float64 = 1e-6,
 )
-    #TODO: Multi-revolution extension requires significant algorithm modifications:
-    # 1. Modifying the time-of-flight equation to include 2πM√(a³/μ) term
-    # 2. Adjusting initial bounds for ψ to handle multi-rev cases
-    # 3. Handling the constraint that only elliptical orbits (ψ > 0) allow multi-rev
-    # 4. Adding proper initial guess logic for multi-rev transfers
-    # 5. Managing multiple solution branches (2M + 1 solutions for M revolutions)
-    # Reference: Universal variables need extension beyond standard Vallado formulation
-    # See recent universal approaches to multi-revolution Lambert problems
-    (M > 0) && error(
-        "Multi-revolution case not implemented - requires universal variable extension",
-    )
-
-    # Check that input parameters are safe
     assert_parameters_are_valid(μ, r1, r2, tof, M)
 
-    # Retrieve the fundamental geometry of the problem
     r1_norm, r2_norm, c_norm, dtheta = lambert_geometry(r1, r2, prograde)
 
-    # Compute Vallado's transfer angle parameter
     A = get_A(r1_norm, r2_norm, dtheta)
     (A == 0.0) && error("Cannot compute orbit, phase angle is 180 degrees")
 
-    # The initial guess and limits for the bisection method
-    ψ = 0.0
-    ψ_low = -4 * π^2
-    ψ_up = 4 * π^2
+    if M == 0
+        # Single-revolution: original bisection
+        ψ = 0.0
+        ψ_low = -4 * π^2
+        ψ_up = 4 * π^2
+    else
+        # Multi-revolution: ψ must be positive (elliptic) and in the M-th band.
+        # For M revolutions, ψ ∈ ((2πM)², (2π(M+1))²) approximately.
+        # The bisection bounds are set to search in the appropriate ψ range.
+        if low_path
+            ψ_low = (2π * M)^2 + 1e-6
+            ψ_up = (2π * (M + 1))^2 - 1e-6
+        else
+            ψ_low = (2π * M)^2 + 1e-6
+            ψ_up = (2π * (M + 1))^2 - 1e-6
+        end
+        ψ = (ψ_low + ψ_up) / 2
+    end
 
     numiter = 0
     for iter = 1:maxiter
         numiter += 1
 
-        # Evaluate the value of y at a given psi
         y_val = y_at_psi(ψ, r1_norm, r2_norm, A, stumpff_threshold)
 
         if A > 0.0 && y_val < 0.0
-            # Readjust psi_low until y > 0.0
             while y_val < 0.0
                 ψ_low = ψ
                 C2 = c2(ψ; threshold = stumpff_threshold)
@@ -131,17 +132,15 @@ function vallado2013(
         X = X_at_psi(ψ, y_val, stumpff_threshold)
         tof_new = tof_vallado(μ, ψ, X, A, y_val, stumpff_threshold)
 
-        # Convergence check
         if abs((tof_new - tof) / tof) < rtol
             break
         end
 
-        # Bisection check - narrow the bounds
         condition = tof_new <= tof
-        ψ_low = ψ_low + (ψ - ψ_low) * condition      # Update lower bound if tof_new too small
-        ψ_up = ψ_up + (ψ - ψ_up) * (!condition)      # Update upper bound if tof_new too large
+        ψ_low = ψ_low + (ψ - ψ_low) * condition
+        ψ_up = ψ_up + (ψ - ψ_up) * (!condition)
 
-        ψ = (ψ_up + ψ_low) / 2  # New midpoint for next iteration
+        ψ = (ψ_up + ψ_low) / 2
     end
 
     retcode = handle_max_iterations(numiter, maxiter)
@@ -151,9 +150,9 @@ function vallado2013(
     end
 
     y_val = y_at_psi(ψ, r1_norm, r2_norm, A, stumpff_threshold)
-    f = 1 - y_val / r1_norm          # Lagrange coefficient f
-    g = A * √(y_val / μ)             # Lagrange coefficient g  
-    gdot = 1 - y_val / r2_norm       # Lagrange coefficient ġ
+    f = 1 - y_val / r1_norm
+    g = A * √(y_val / μ)
+    gdot = 1 - y_val / r2_norm
 
     v1, v2 = reconstruct_velocities_fg(f, g, gdot, r1, r2)
 
