@@ -170,7 +170,13 @@ function _mcelreath_tof_elliptic(x::Number, r0::Number, rf::Number, m::Number, �
 end
 
 """
-Compute T and derivatives for hyperbolic orbits, where x_hyp = ΔH > 0.
+Compute T and its first three derivatives w.r.t. xh analytically for hyperbolic orbits.
+
+Derived from the elliptic formulas via the substitution x = j·xh (j = √(-1)).
+Each "tilde" quantity is the real coefficient from the elliptic formula evaluated with
+hyperbolic universal functions and sqβ = √(-α) replacing sqα = √α.  Terms whose total
+j-factor count is ≡ 3 (mod 4) acquire a sign flip relative to the naive substitution.
+The conversion to xh-derivatives is: T'_xh = -t̃₁, T''_xh = -t̃₂, T'''_xh = +t̃₃.
 """
 function _mcelreath_tof_hyperbolic(
     x_hyp::Number,
@@ -180,68 +186,61 @@ function _mcelreath_tof_hyperbolic(
     μ::Number,
 )
     α = _mcelreath_alpha_hyperbolic(x_hyp, r0, rf, m)
-    neg_α = -α
-    sq_neg_α = sqrt(neg_α)
+
+    if abs(α) < 1e-14
+        χ0 = sqrt(2 * (rf + r0 - 2 * m))
+        T = m * χ0 + χ0^3 / 6
+        return T, 0.0, 0.0, 0.0, α
+    end
 
     U0, U1, U2, U3, U0s, U1s = _mcelreath_universal_hyperbolic(x_hyp, α)
+    β = -α
+    sqβ = sqrt(β)
 
     T = 2 * U1s * m + U3
 
-    # For hyperbolic, derivatives w.r.t. x_hyp need a sign flip because
-    # x = j*x_hyp, so d/dx = (1/j)*d/dx_hyp = -j*d/dx_hyp
-    # We compute derivatives w.r.t. the real variable x_hyp and account
-    # for the chain rule: the Householder update works on x_hyp directly.
+    # --- Tilde α derivatives (elliptic formulas with sqα → sqβ, then sign-corrected) ---
+    ã₁ = sqβ * (2 * U0s - m * α) / (2 * U1s)
+    ã₂ = -α / 2 + ã₁ * (U0s - 2 * m * α) / (2 * sqβ * U1s)
 
-    # α and derivatives w.r.t. x_hyp (chain rule: d/dx_hyp of cos(jx_hyp)=cosh(x_hyp) → sinh(x_hyp))
-    # Re-derive for hyperbolic: U0 = cosh(xh), U0s = cosh(xh/2)
-    # dU0/dxh = sinh(xh), dU0s/dxh = sinh(xh/2)/2
+    denom_a3 = 4 * U2
+    numer_a3_t1 = (2 * m^2 * α - m * U0s) / denom_a3
+    numer_a3_t2 = -ã₁ * (U0s + 2 * α * m) / (4 * α * sqβ * U1s)
+    numer_a3_t3 = -3 / 4
+    # j-count rule: α''·(…)/sqα has j-count = -1 → FLIP (minus instead of plus)
+    ã₃ =
+        ã₁ * (numer_a3_t1 + numer_a3_t2 + numer_a3_t3) -
+        ã₂ * (U0s - 2 * m * α) / (2 * sqβ * U1s)
 
-    sxh = sinh(x_hyp)
-    sxh2 = sinh(x_hyp / 2)
-    cxh = U0    # cosh(x_hyp)
-    cxh2 = U0s  # cosh(x_hyp/2)
+    # --- Tilde T derivatives ---
+    # T'_x tilde: no sign flips (all terms have j-count 1)
+    t̃₁ = ((m * U0s + U2) * sqβ - (T / 2 + U3) * ã₁) / α
 
-    denom = rf + r0 - 2 * m * cxh2
-    α_h = (1 - cxh) / denom  # This is negative for hyperbolic
+    # T''_x tilde: terms with (α')·T' and T·(α')² have j-count 2 → FLIP (+3 instead of -3)
+    t̃₂ =
+        (
+            U1 - m * α * U1s / 2 +
+            ã₁ * (2 * m * U0s / sqβ + 3 * t̃₁) +
+            3 * T * ã₁^2 / (4 * α) - (T / 2 + U3) * ã₂
+        ) / α
 
-    # dα/dxh via quotient rule
-    d_num = -sxh
-    d_den = -m * sxh2
-    α′_h = (d_num * denom - (1 - cxh) * d_den) / denom^2
+    # T'''_x tilde: sign flips on U0/sqα, inner (α')² nest, and α''·(…)/sqα terms
+    t̃₃ =
+        (
+            -U0 / sqβ - m * sqβ * U0s / 2 -
+            ã₁ *
+            (9 * t̃₂ / 2 + 3 * m * U1s / 2 - ã₁ * (9 * t̃₁ / 4 - 3 * T * ã₁ / (8 * α^2))) +
+            ã₂ *
+            (-(2 * m * U0s - U2) / sqβ - 7 * t̃₁ / 2 + ã₁ * (U3 / α - 7 * T / (4 * α))) -
+            ã₃ * (T / 2 + U3)
+        ) / α
 
-    # dT/dxh: T = 2*m*sinh(xh/2)/sqrt(-α) + (xh/sqrt(-α) - sinh(xh)/sqrt(-α))/(-α)
-    # This is complex to differentiate analytically. Use the chain rule approach.
-    # Since the Householder update works on the real variable x_hyp, we need
-    # dT/dxh, d²T/dxh², d³T/dxh³.
-
-    # Numerical derivatives for robustness in the hyperbolic regime
-    eps_h = max(abs(x_hyp) * 1e-7, 1e-12)
-
-    Tp, _, _, _, _ = _mcelreath_tof_hyperbolic_val(x_hyp + eps_h, r0, rf, m)
-    Tm_v, _, _, _, _ = _mcelreath_tof_hyperbolic_val(x_hyp - eps_h, r0, rf, m)
-    Tp2, _, _, _, _ = _mcelreath_tof_hyperbolic_val(x_hyp + 2 * eps_h, r0, rf, m)
-    Tm2, _, _, _, _ = _mcelreath_tof_hyperbolic_val(x_hyp - 2 * eps_h, r0, rf, m)
-
-    T′ = (Tp - Tm_v) / (2 * eps_h)
-    T′′ = (Tp - 2 * T + Tm_v) / (eps_h^2)
-    T′′′ = (Tp2 - 2 * Tp + 2 * Tm_v - Tm2) / (2 * eps_h^3)
+    # Convert tilde quantities to xh-derivatives
+    T′ = -t̃₁
+    T′′ = -t̃₂
+    T′′′ = t̃₃
 
     return T, T′, T′′, T′′′, α
-end
-
-"""
-Compute only the transfer time value for hyperbolic (no derivatives).
-"""
-@inline function _mcelreath_tof_hyperbolic_val(
-    x_hyp::Number,
-    r0::Number,
-    rf::Number,
-    m::Number,
-)
-    α = _mcelreath_alpha_hyperbolic(x_hyp, r0, rf, m)
-    _, _, _, U3, _, U1s = _mcelreath_universal_hyperbolic(x_hyp, α)
-    T = 2 * U1s * m + U3
-    return T, 0.0, 0.0, 0.0, α
 end
 
 # ============================================================================
@@ -604,7 +603,8 @@ function _mcelreath_bracket_hyperbolic(
 end
 
 """
-Householder iteration for hyperbolic solutions (x_hyp > 0), bounded in [0, xh_max).
+3rd-order Householder iteration for hyperbolic solutions (x_hyp > 0), bounded in [0, xh_max).
+Mirrors the elliptic Householder with the same fallback cascade (Halley → Newton → bisect).
 """
 function _mcelreath_householder_hyperbolic(
     xh0::Number,
@@ -628,14 +628,16 @@ function _mcelreath_householder_hyperbolic(
         T, T′, T′′, T′′′, _ = _mcelreath_tof_hyperbolic(xh, r0, rf, m, μ)
         h = T - T_tilde
         h′ = T′
+        h′′ = T′′
+        h′′′ = T′′′
 
         if abs(h′) < 1e-30
             break
         end
 
-        # 3rd-order Householder
-        num = 6 * h * (h′^2 - h * T′′ / 2)
-        den = 6 * h′^3 - 6 * h * h′ * T′′ + h^2 * T′′′
+        # 3rd-order Householder (Eq. 70)
+        num = 6 * h * (h′^2 - h * h′′ / 2)
+        den = 6 * h′^3 - 6 * h * h′ * h′′ + h^2 * h′′′
 
         if abs(den) < 1e-30
             dx = -h / h′
@@ -645,9 +647,9 @@ function _mcelreath_householder_hyperbolic(
 
         xh_new = xh + dx
 
-        # Bound enforcement with fallback to lower-order methods
+        # Bound enforcement with fallback cascade
         if xh_new <= xh_lo || xh_new >= xh_hi
-            den2 = 2 * h′^2 - h * T′′
+            den2 = 2 * h′^2 - h * h′′
             if abs(den2) > 1e-30
                 dx = -2 * h * h′ / den2
                 xh_new = xh + dx
