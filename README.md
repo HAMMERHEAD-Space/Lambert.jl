@@ -25,9 +25,6 @@ A Julia package for solving Lambert's problem with multiple solver algorithms, a
 ### Eccentricity-Based Solvers
 - **AvanziniSolver**: G. Avanzini's eccentricity-based method (2008) - Single revolution only
 
-## Potential Future Directions
-- **Perturbed Lambert Solvers**: Algorithms that account for non-Keplerian perturbations (J2, drag, third-body, SRP) during the transfer, enabling higher-fidelity trajectory design without iterative corrections
-
 ## Usage
 
 This package provides two interfaces for solving Lambert problems:
