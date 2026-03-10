@@ -60,6 +60,18 @@ const MULTIREV_SOLVERS = [
 
     # Run performance and allocation tests
     include("test_performance.jl")
+
+    # Utility function tests (Stumpff, validation, geometry, numerics)
+    include("test_utils.jl")
+
+    # SciMLBase interface tests (init/solve!, heuristic selection, remake)
+    include("test_sciml_interface.jl")
+
+    # Analytical sensitivity / Jacobian tests
+    include("test_sensitivity.jl")
+
+    # Solver internal function and branch coverage tests
+    include("test_solver_internals.jl")
 end
 
 
