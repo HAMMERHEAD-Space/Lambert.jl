@@ -384,7 +384,7 @@ function get_W(k::Number, M::Int; ε::Float64 = 2e-2)
             (2 / 231) * sq2 * v4 - (2 / 429) * v5 + (8 / 6435) * sq2 * v6 -
             (8 / 12155) * v7 + (8 / 46189) * sq2 * v8
     else
-        throw(ValueError("Did not find a suitable equation to find W!"))
+        throw(ArgumentError("Did not find a suitable equation to find W!"))
     end
 
     return W
