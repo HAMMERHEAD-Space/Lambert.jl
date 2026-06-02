@@ -17,7 +17,7 @@ analytical Lagrange coefficient derivatives for μ sensitivity, with zero AD dep
 - Arora & Russell (2014), *Partial Derivatives of the Lambert Problem*
 """
 function lambert_jacobian(prob::LambertProblem, sol::LambertSolution)
-    @unpack μ, r1, r2, tof = prob
+    (; μ, r1, r2, tof) = prob
     v1 = sol.v1
     v2 = sol.v2
 

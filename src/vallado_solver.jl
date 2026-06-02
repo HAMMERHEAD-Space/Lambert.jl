@@ -17,7 +17,7 @@ This guarantees convergence but requires more iterations than other methods.
 Vallado, D. A. (2001). Fundamentals of astrodynamics and applications 
 (2nd ed.). Space Technology Library. Springer Science & Business Media.
 """
-@with_kw struct ValladoSolver <: AbstractLambertSolver
+Base.@kwdef struct ValladoSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     low_path::Bool = true
@@ -27,8 +27,8 @@ Vallado, D. A. (2001). Fundamentals of astrodynamics and applications
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::ValladoSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, low_path, maxiter, rtol, stumpff_threshold = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, low_path, maxiter, rtol, stumpff_threshold) = solver
 
     v1, v2, numiter, retcode = vallado2013(
         μ,

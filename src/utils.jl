@@ -31,7 +31,7 @@ function get_transfer_angle(
     θ0 = angle_between_vectors(r1, r2)
 
     # Solve for a unitary vector normal to the vector plane
-    h = cross_prod / norm(cross_prod)
+    h = cross_prod / _euclidean_norm(cross_prod)
 
     # Compute the projection of the normal vector onto the reference plane
     α = dot(SVector{3}(0, 0, 1), h)
@@ -64,7 +64,7 @@ function get_orbit_normal_vector(
     r2::AbstractVector{<:Number},
     prograde::Bool,
 )
-    i_h = (r1 × r2) / norm(r1 × r2)
+    i_h = (r1 × r2) / _euclidean_norm(r1 × r2)
 
     α = dot(SVector{3}(0, 0, 1), i_h)
 
@@ -116,6 +116,17 @@ For positive arguments: c₃(ψ) = (√ψ - sin(√ψ))/√(ψ³)
     end
 end
 
+# Euclidean norm via explicit reduction.  Avoids `LinearAlgebra.norm` whose
+# `AbstractVector` codepath routes through SparseArrays on Julia 1.12, causing
+# spurious JET errors (iterate(::Nothing)).
+@inline function _euclidean_norm(v::AbstractVector{T}) where {T<:Number}
+    s = abs2(zero(T))
+    @inbounds for i in eachindex(v)
+        s += abs2(v[i])
+    end
+    return sqrt(s)
+end
+
 """
     assert_parameters_are_valid(μ, r1, r2, tof, M)
 
@@ -129,11 +140,13 @@ function assert_parameters_are_valid(
     M::Int,
 )
     @assert μ > 0 "Gravitational parameter must be positive"
-    @assert norm(r1) > 0 "Initial position vector cannot be zero"
-    @assert norm(r2) > 0 "Final position vector cannot be zero"
+    @assert _euclidean_norm(r1) > 0 "Initial position vector cannot be zero"
+    @assert _euclidean_norm(r2) > 0 "Final position vector cannot be zero"
     @assert tof > 0 "Time of flight must be positive"
     @assert M >= 0 "Number of revolutions must be non-negative"
-    @assert !all(r1 .≈ r2) "Initial and final positions cannot be the same"
+    _d = _euclidean_norm(r1 .- r2)
+    _s = max(_euclidean_norm(r1), _euclidean_norm(r2))
+    @assert _d > sqrt(eps(Float64)) * _s "Initial and final positions cannot be the same"
 end
 
 """
@@ -166,9 +179,9 @@ Returns (r1_norm, r2_norm, c_norm, dtheta).
     r2::AbstractVector{<:Number},
     prograde::Bool,
 )
-    r1_norm = norm(r1)
-    r2_norm = norm(r2)
-    c_norm = norm(r2 - r1)
+    r1_norm = _euclidean_norm(r1)
+    r2_norm = _euclidean_norm(r2)
+    c_norm = _euclidean_norm(r2 - r1)
     dtheta = get_transfer_angle(r1, r2, prograde)
     return (r1_norm, r2_norm, c_norm, dtheta)
 end
@@ -201,8 +214,9 @@ Returns true if converged.
     atol::Float64,
     rtol::Float64,
 )
-    diff_norm = norm(vec_new - vec_old)
-    return diff_norm <= atol || diff_norm <= rtol * max(norm(vec_new), norm(vec_old))
+    diff_norm = _euclidean_norm(vec_new - vec_old)
+    return diff_norm <= atol ||
+           diff_norm <= rtol * max(_euclidean_norm(vec_new), _euclidean_norm(vec_old))
 end
 
 """
@@ -354,7 +368,7 @@ function compute_unit_vector_geometry(
     i_r1 = r1 / r1_norm
     i_r2 = r2 / r2_norm
     i_h = cross(i_r1, i_r2)
-    i_h_norm = norm(i_h)
+    i_h_norm = _euclidean_norm(i_h)
 
     if i_h_norm < 1e-10
         return i_r1, i_r2, SVector{3}(0.0, 0.0, 1.0), 1.0, 0.0
@@ -496,7 +510,7 @@ function select_lambert_algorithm(
     M::Int = 0,
     prograde::Bool = true,
 )
-    @unpack r1, r2 = problem
+    (; r1, r2) = problem
 
     dtheta = get_transfer_angle(r1, r2, prograde)
 
@@ -533,7 +547,7 @@ function generic_solver_solve(
     solver::AbstractLambertSolver,
     algorithm_function::Function,
 )
-    @unpack μ, r1, r2, tof = problem
+    (; μ, r1, r2, tof) = problem
 
     # Get solver parameters (this will vary by solver type)
     if hasfield(typeof(solver), :M)
@@ -637,7 +651,7 @@ function normalize_inputs(
     r2::AbstractVector{<:Number},
     tof::Number,
 )
-    L_ref = norm(r1)  # Characteristic length
+    L_ref = _euclidean_norm(r1)  # Characteristic length
     T_ref = √(L_ref^3 / μ)  # Characteristic time
 
     μ_hat = μ * (T_ref^2 / L_ref^3)

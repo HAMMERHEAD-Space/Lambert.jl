@@ -13,9 +13,9 @@ A struct containing the results of a porkchop plot grid calculation.
 # Usage
 Access data for a specific quantity using `grid.data[:total_dv]`, `grid.data[:dv_departure]`, etc.
 """
-struct PorkchopGrid
-    departure_times::AbstractVector
-    arrival_times::AbstractVector
+struct PorkchopGrid{T<:AbstractVector,U<:AbstractVector}
+    departure_times::T
+    arrival_times::U
     quantities::Vector{Symbol}
     data::Dict{Symbol,Matrix{Float64}}
 end
@@ -113,13 +113,14 @@ function porkchop_grid(
     base_prob = LambertProblem(μ, r1_base, r2_base, tof_base)
 
     # prob_func remakes the problem for each trajectory
-    function prob_func(prob, i, repeat)
-        r1, r2, tof, _, _ = problem_params[i]
+    function prob_func(prob, ctx)
+        r1, r2, tof, _, _ = problem_params[ctx.sim_id]
         remake(prob; r1 = r1, r2 = r2, tof = tof)
     end
 
     # output_func computes all requested quantities from the solution
-    function output_func(sol, i)
+    function output_func(sol, ctx)
+        i = ctx.sim_id
         _, _, _, v1, v2 = problem_params[i]
 
         if sol.retcode == :SUCCESS

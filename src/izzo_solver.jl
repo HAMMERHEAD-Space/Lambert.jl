@@ -17,7 +17,7 @@ Lambert's problem solver using Izzo's devised algorithm from 2015.
 Izzo, D. (2015). Revisiting Lambert's problem. Celestial Mechanics
 and Dynamical Astronomy, 121(1), 1-15.
 """
-@with_kw struct IzzoSolver <: AbstractLambertSolver
+Base.@kwdef struct IzzoSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     low_path::Bool = true
@@ -27,8 +27,8 @@ and Dynamical Astronomy, 121(1), 1-15.
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::IzzoSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, low_path, maxiter, atol, rtol = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, low_path, maxiter, atol, rtol) = solver
 
     # Call the direct algorithm function
     v1, v2 = izzo2015(

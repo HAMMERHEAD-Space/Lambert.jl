@@ -24,7 +24,7 @@ time equation for improved numerical stability at ultra-high revolution counts.
     the multi-revolution Lambert's problem. *Celestial Mechanics and Dynamical Astronomy*,
     137, 22. DOI: [10.1007/s10569-025-10251-5](https://doi.org/10.1007/s10569-025-10251-5)
 """
-@with_kw struct McElreathSolver <: AbstractLambertSolver
+Base.@kwdef struct McElreathSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     low_path::Bool = true
@@ -33,8 +33,8 @@ time equation for improved numerical stability at ultra-high revolution counts.
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::McElreathSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, low_path, maxiter, rtol = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, low_path, maxiter, rtol) = solver
 
     v1, v2, numiter, retcode = mcelreath2025(
         μ,

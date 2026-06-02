@@ -20,7 +20,7 @@ Gauss, C. F. (1809). Theoria motus corporum coelestium in sectionibus conicis
 solem ambientium [Theory of the motion of the heavenly bodies moving about 
 the sun in conic sections]. Hamburg: Friedrich Perthes and I. H. Besser.
 """
-@with_kw struct GaussSolver <: AbstractLambertSolver
+Base.@kwdef struct GaussSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     maxiter::Int = 250
@@ -32,8 +32,8 @@ the sun in conic sections]. Hamburg: Friedrich Perthes and I. H. Besser.
 end
 
 function solve(problem::LambertProblem, solver::GaussSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, maxiter, atol, rtol, y_init, y_min, y_max = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, maxiter, atol, rtol, y_init, y_min, y_max) = solver
 
     v1, v2, numiter, status = gauss1809(
         μ,
