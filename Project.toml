@@ -1,7 +1,7 @@
 name = "Lambert"
 uuid = "66f5ad62-9998-49cb-a01c-13bfcd13cbb1"
-authors = ["Jordan Murphy <jmurphy6895@gmail.com> and contributors"]
 version = "0.3.0"
+authors = ["Jordan Murphy <jmurphy6895@gmail.com> and contributors"]
 
 [deps]
 AstroCoords = "27fb9038-6a9d-4e07-8d5d-d0805b53c4cb"
@@ -26,7 +26,7 @@ LinearAlgebra = "1"
 Parameters = "0.12"
 Plots = "1"
 Roots = "2"
-SciMLBase = "2"
+SciMLBase = "2, 3"
 StaticArraysCore = "1"
 Test = "1"
 julia = "1.10, 1.11"
