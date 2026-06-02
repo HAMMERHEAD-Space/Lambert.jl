@@ -19,7 +19,7 @@ Arora, N., & Russell, R. P. (2013). A fast and robust multiple revolution Lamber
 algorithm using a cosine transformation. In AAS/AIAA Astrodynamics Specialist 
 Conference, Hilton Head, SC. Paper AAS 13-728.
 """
-@with_kw struct AroraSolver <: AbstractLambertSolver
+Base.@kwdef struct AroraSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     maxiter::Int = 35
@@ -28,8 +28,8 @@ Conference, Hilton Head, SC. Paper AAS 13-728.
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::AroraSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, maxiter, atol, ε = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, maxiter, atol, ε) = solver
 
     # Call the direct algorithm function
     v1, v2, numiter, retcode = arora2013(
@@ -102,8 +102,8 @@ function arora2013(
     # All variables named "hat" have been non-dimensionalized
     r1_hat = r1 / L_ref
     r2_hat = r2 / L_ref
-    r1hat_norm = norm(r1_hat)
-    r2hat_norm = norm(r2_hat)
+    r1hat_norm = _euclidean_norm(r1_hat)
+    r2hat_norm = _euclidean_norm(r2_hat)
     tof_hat = tof / T_ref
     μ_hat = μ * (T_ref^2 / L_ref^3)
 

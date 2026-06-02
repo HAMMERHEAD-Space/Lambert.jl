@@ -2,7 +2,6 @@ module Lambert
 
 using AstroCoords
 using LinearAlgebra
-using Parameters
 using Roots
 using SciMLBase
 using StaticArraysCore

@@ -24,7 +24,7 @@ time equation for improved numerical stability at ultra-high revolution counts.
     the multi-revolution Lambert's problem. *Celestial Mechanics and Dynamical Astronomy*,
     137, 22. DOI: [10.1007/s10569-025-10251-5](https://doi.org/10.1007/s10569-025-10251-5)
 """
-@with_kw struct McElreathSolver <: AbstractLambertSolver
+Base.@kwdef struct McElreathSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     low_path::Bool = true
@@ -33,8 +33,8 @@ time equation for improved numerical stability at ultra-high revolution counts.
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::McElreathSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, low_path, maxiter, rtol = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, low_path, maxiter, rtol) = solver
 
     v1, v2, numiter, retcode = mcelreath2025(
         μ,
@@ -705,7 +705,7 @@ function _mcelreath_velocity(
     rfs = SVector{3}(rf_vec[1], rf_vec[2], rf_vec[3])
 
     c_vec = rfs - r0s
-    c_mag = norm(c_vec)
+    c_mag = _euclidean_norm(c_vec)
     ic = c_vec / c_mag
     ir0 = r0s / r0
     irf = rfs / rf
@@ -762,8 +762,8 @@ function mcelreath2025(
 )
     assert_parameters_are_valid(μ, r1, r2, tof, M)
 
-    r0_norm = norm(r1)
-    rf_norm = norm(r2)
+    r0_norm = _euclidean_norm(r1)
+    rf_norm = _euclidean_norm(r2)
     _, _, _, dtheta = lambert_geometry(r1, r2, prograde)
     assert_transfer_angle_not_zero(dtheta)
 

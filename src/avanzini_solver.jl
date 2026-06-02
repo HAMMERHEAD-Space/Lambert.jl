@@ -19,7 +19,7 @@ along the chord direction. Note: This solver does not support multi-revolutions.
 Avanzini, G. (2008). A simple Lambert algorithm. Journal of Guidance, 
 Control, and Dynamics, 31(6), 1587-1594.
 """
-@with_kw struct AvanziniSolver <: AbstractLambertSolver
+Base.@kwdef struct AvanziniSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     maxiter::Int = 35
@@ -29,8 +29,8 @@ Control, and Dynamics, 31(6), 1587-1594.
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::AvanziniSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, maxiter, atol, dx, x_init = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, maxiter, atol, dx, x_init) = solver
 
     # Call the direct algorithm function
     v1, v2 = avanzini2008(
@@ -90,9 +90,9 @@ function avanzini2008(
     (M > 0) && error("Avanzini solver does not support multi-revolution scenarios")
 
     # Get geometry following Python reference exactly
-    r1_norm = norm(r1)
-    r2_norm = norm(r2)
-    c_norm = norm(r2 - r1)
+    r1_norm = _euclidean_norm(r1)
+    r2_norm = _euclidean_norm(r2)
+    c_norm = _euclidean_norm(r2 - r1)
     dtheta = get_transfer_angle(r1, r2, prograde)
     w_c = get_transfer_angle(r1, (r2 - r1), prograde)
 
