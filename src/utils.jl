@@ -116,6 +116,17 @@ For positive arguments: c₃(ψ) = (√ψ - sin(√ψ))/√(ψ³)
     end
 end
 
+# Euclidean norm via explicit reduction.  Avoids `LinearAlgebra.norm` whose
+# `AbstractVector` codepath routes through SparseArrays on Julia 1.12, causing
+# spurious JET errors (iterate(::Nothing)).
+@inline function _euclidean_norm(v::AbstractVector{T}) where {T<:Number}
+    s = abs2(zero(T))
+    @inbounds for i in eachindex(v)
+        s += abs2(v[i])
+    end
+    return sqrt(s)
+end
+
 """
     assert_parameters_are_valid(μ, r1, r2, tof, M)
 
@@ -129,8 +140,8 @@ function assert_parameters_are_valid(
     M::Int,
 )
     @assert μ > 0 "Gravitational parameter must be positive"
-    @assert norm(r1) > 0 "Initial position vector cannot be zero"
-    @assert norm(r2) > 0 "Final position vector cannot be zero"
+    @assert _euclidean_norm(r1) > 0 "Initial position vector cannot be zero"
+    @assert _euclidean_norm(r2) > 0 "Final position vector cannot be zero"
     @assert tof > 0 "Time of flight must be positive"
     @assert M >= 0 "Number of revolutions must be non-negative"
     @assert !all(r1 .≈ r2) "Initial and final positions cannot be the same"
@@ -496,7 +507,7 @@ function select_lambert_algorithm(
     M::Int = 0,
     prograde::Bool = true,
 )
-    @unpack r1, r2 = problem
+    (; r1, r2) = problem
 
     dtheta = get_transfer_angle(r1, r2, prograde)
 
@@ -533,7 +544,7 @@ function generic_solver_solve(
     solver::AbstractLambertSolver,
     algorithm_function::Function,
 )
-    @unpack μ, r1, r2, tof = problem
+    (; μ, r1, r2, tof) = problem
 
     # Get solver parameters (this will vary by solver type)
     if hasfield(typeof(solver), :M)

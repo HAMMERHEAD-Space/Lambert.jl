@@ -20,7 +20,7 @@ for 180-degree transfer angles and increasing performance.
 Battin, R. H., & Vaughan, R. M. (1984). An elegant Lambert algorithm.
 Journal of Guidance, Control, and Dynamics, 7(6), 662-670.
 """
-@with_kw struct BattinSolver <: AbstractLambertSolver
+Base.@kwdef struct BattinSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     maxiter::Int = 35
@@ -30,8 +30,8 @@ Journal of Guidance, Control, and Dynamics, 7(6), 662-670.
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::BattinSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, maxiter, atol, levels_xi, levels_K = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, maxiter, atol, levels_xi, levels_K) = solver
 
     # Call the direct algorithm function
     v1, v2, numiter, retcode = battin1984(

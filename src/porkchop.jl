@@ -13,9 +13,9 @@ A struct containing the results of a porkchop plot grid calculation.
 # Usage
 Access data for a specific quantity using `grid.data[:total_dv]`, `grid.data[:dv_departure]`, etc.
 """
-struct PorkchopGrid
-    departure_times::AbstractVector
-    arrival_times::AbstractVector
+struct PorkchopGrid{T<:AbstractVector,U<:AbstractVector}
+    departure_times::T
+    arrival_times::U
     quantities::Vector{Symbol}
     data::Dict{Symbol,Matrix{Float64}}
 end

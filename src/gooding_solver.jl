@@ -17,7 +17,7 @@ Lambert's problem solver using the method proposed by R. H. Gooding in 1990.
 Gooding, R. H. (1990). A procedure for the solution of Lambert's orbital
 boundary-value problem. Celestial Mechanics and Dynamical Astronomy, 48(2), 145-165.
 """
-@with_kw struct GoodingSolver <: AbstractLambertSolver
+Base.@kwdef struct GoodingSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     low_path::Bool = true
@@ -27,8 +27,8 @@ boundary-value problem. Celestial Mechanics and Dynamical Astronomy, 48(2), 145-
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::GoodingSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, low_path, maxiter, atol, rtol = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, low_path, maxiter, atol, rtol) = solver
 
     # Call the direct algorithm function
     v1, v2, numiter, retcode = gooding1990(

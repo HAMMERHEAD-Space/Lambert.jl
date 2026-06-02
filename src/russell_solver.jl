@@ -27,7 +27,7 @@ revolution counts.
     Sensitivities. *Journal of Guidance, Control, and Dynamics*, 45(2).
     DOI: [10.2514/1.G006089](https://doi.org/10.2514/1.G006089)
 """
-@with_kw struct RussellSolver <: AbstractLambertSolver
+Base.@kwdef struct RussellSolver <: AbstractLambertSolver
     M::Int = 0
     prograde::Bool = true
     low_path::Bool = true
@@ -37,8 +37,8 @@ revolution counts.
 end
 
 function SciMLBase.solve(problem::LambertProblem, solver::RussellSolver)
-    @unpack μ, r1, r2, tof = problem
-    @unpack M, prograde, low_path, maxiter, rtol, order = solver
+    (; μ, r1, r2, tof) = problem
+    (; M, prograde, low_path, maxiter, rtol, order) = solver
 
     v1, v2, numiter, retcode = russell2021(
         μ,
