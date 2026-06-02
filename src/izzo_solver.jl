@@ -95,7 +95,7 @@ function izzo2015(
 
     # Unit vectors
     i_r1, i_r2, i_h_unnorm = compute_unit_vectors(r1, r2, r1_norm, r2_norm)
-    i_h = i_h_unnorm / norm(i_h_unnorm)
+    i_h = i_h_unnorm / _euclidean_norm(i_h_unnorm)
 
     # Geometry of the problem
     ll = √(1 - min(1.0, c_norm / s))

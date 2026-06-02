@@ -90,9 +90,9 @@ function avanzini2008(
     (M > 0) && error("Avanzini solver does not support multi-revolution scenarios")
 
     # Get geometry following Python reference exactly
-    r1_norm = norm(r1)
-    r2_norm = norm(r2)
-    c_norm = norm(r2 - r1)
+    r1_norm = _euclidean_norm(r1)
+    r2_norm = _euclidean_norm(r2)
+    c_norm = _euclidean_norm(r2 - r1)
     dtheta = get_transfer_angle(r1, r2, prograde)
     w_c = get_transfer_angle(r1, (r2 - r1), prograde)
 

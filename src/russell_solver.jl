@@ -769,12 +769,12 @@ function russell2021(
     d = dtheta <= π ? 1 : -1
 
     # Normalize to canonical units (μ = 1)
-    r1_norm = norm(r1)
+    r1_norm = _euclidean_norm(r1)
     Lref = r1_norm
     Tref = sqrt(Lref^3 / μ)
     r1_hat = r1 / Lref
     r2_hat = r2 / Lref
-    r2_norm = norm(r2_hat)
+    r2_norm = _euclidean_norm(r2_hat)
     r1hat_norm = 1.0  # norm(r1_hat) by construction
     r2hat_norm = r2_norm
     tof_hat = tof / Tref
@@ -793,7 +793,7 @@ function russell2021(
             SVector{3}(r1_hat[1], r1_hat[2], r1_hat[3]),
             SVector{3}(r2_hat[1], r2_hat[2], r2_hat[3]),
         )
-        sthetar1r2 = norm(r1xr2)
+        sthetar1r2 = _euclidean_norm(r1xr2)
         abstau = sqrt(1.0 / (oneMctheta * r1r2)) / r1pr2 * sthetar1r2
     else
         abstau = sqrt(r1r2 * onePctheta) / r1pr2

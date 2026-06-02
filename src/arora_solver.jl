@@ -102,8 +102,8 @@ function arora2013(
     # All variables named "hat" have been non-dimensionalized
     r1_hat = r1 / L_ref
     r2_hat = r2 / L_ref
-    r1hat_norm = norm(r1_hat)
-    r2hat_norm = norm(r2_hat)
+    r1hat_norm = _euclidean_norm(r1_hat)
+    r2hat_norm = _euclidean_norm(r2_hat)
     tof_hat = tof / T_ref
     μ_hat = μ * (T_ref^2 / L_ref^3)
 
