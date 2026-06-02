@@ -144,7 +144,9 @@ function assert_parameters_are_valid(
     @assert _euclidean_norm(r2) > 0 "Final position vector cannot be zero"
     @assert tof > 0 "Time of flight must be positive"
     @assert M >= 0 "Number of revolutions must be non-negative"
-    @assert !isapprox(r1, r2) "Initial and final positions cannot be the same"
+    _d = _euclidean_norm(r1 .- r2)
+    _s = max(_euclidean_norm(r1), _euclidean_norm(r2))
+    @assert _d > sqrt(eps(Float64)) * _s "Initial and final positions cannot be the same"
 end
 
 """
